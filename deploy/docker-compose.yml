@@ -1,22 +1,35 @@
-# 本地依赖：MySQL + Redis
-# 空库首次启动会执行 init/（最终态 schema + 演示种子），不再重放 55 个历史迁移。
+# 宝塔部署：Docker 只跑业务，域名/HTTPS 交给宝塔
+# 不占 80/443。用法：./deploy.sh init → 编辑 .env → ./deploy.sh up
+#
+# 端口：
+#   127.0.0.1:3080  前台（宝塔反代 /）
+#   127.0.0.1:3088  API（宝塔反代 /api）
+#   0.0.0.0:3081    后台 http://服务器IP:3081
+
 services:
   mysql:
     image: mysql:8.0
     container_name: jyinshi-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
       MYSQL_DATABASE: jyinshi_next
-      MYSQL_USER: jyinshi
-      MYSQL_PASSWORD: jyinshi123
-    ports:
-      - "3306:3306"
+      MYSQL_USER: ${DB_USERNAME:-jyinshi}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-jyinshi123}
+      TZ: Asia/Shanghai
     volumes:
-      - ./data/mysql:/var/lib/mysql
-      - ./init:/docker-entrypoint-initdb.d:ro
+      - mysql_data:/var/lib/mysql
       - ./mysql/conf.d:/etc/mysql/conf.d:ro
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      - ./init:/docker-entrypoint-initdb.d:ro
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-time-zone=+08:00
+    networks:
+      - jyinshi-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root123}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     logging:
       driver: json-file
       options:
@@ -27,18 +40,146 @@ services:
     image: redis:7-alpine
     container_name: jyinshi-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - ./data/redis:/data
     command: >
       redis-server
       --maxmemory 256mb
       --maxmemory-policy allkeys-lru
       --save 900 1
       --save 300 10
+    networks:
+      - jyinshi-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     logging:
       driver: json-file
       options:
         max-size: "20m"
+        max-file: "2"
+
+  pansou:
+    profiles: ["pansou"]
+    image: ghcr.io/fish2018/pansou-web:latest
+    container_name: jyinshi-pansou
+    restart: unless-stopped
+    environment:
+      CHANNELS: ${PANSOU_CHANNELS:-tgsearchers7,Aliyun_4K_Movies,bdbdndn11,yunpanx,bsbdbfjfjff,yp123pan,sbsbsnsqq,yunpanxunlei,tianyifc,BaiduCloudDisk,txtyzy,peccxinpd,gotopan,PanjClub,kkxlzy,baicaoZY,MCPH01,bdwpzhpd,ysxb48,jdjdn1111,yggpan,MCPH086,zaihuayun,Q66Share,Oscar_4Kmovies,ucwpzy,shareAliyun,alyp_1,dianyingshare,Quark_Movies,XiangxiuNBB,ydypzyfx,ucquark,xx123pan,yingshifenxiang123,zyfb123,tyypzhpd,tianyirigeng,cloudtianyi,hdhhd21,Lsp115,oneonefivewpfx,qixingzhenren,taoxgzy,Channel_Shares_115,tyysypzypd,vip115hot,wp123zy,yunpan139,yunpan189,yunpanuc,yydf_hzl,leoziyuan,pikpakpan,Q_dongman,yoyokuakeduanju}
+      ENABLED_PLUGINS: ${PANSOU_PLUGINS:-labi,zhizhen,shandian,duoduo,muou}
+      CACHE_TTL: ${PANSOU_CACHE_TTL:-60}
+    volumes:
+      - pansou_cache:/app/data/cache
+    mem_limit: 1g
+    networks:
+      - jyinshi-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+  backend:
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+    image: jyinshi-next-backend:latest
+    container_name: jyinshi-next-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      TZ: Asia/Shanghai
+      DB_URL: jdbc:mysql://mysql:3306/jyinshi_next?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USERNAME: ${DB_USERNAME:-jyinshi}
+      DB_PASSWORD: ${DB_PASSWORD:-jyinshi123}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_DATABASE: "0"
+      CORS_ENFORCE_ORIGIN: ${CORS_ENFORCE_ORIGIN:-true}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      PANSOU_BASE: ${PANSOU_BASE:-http://pansou}
+      XUNLEI_REDIRECT_URI: ${XUNLEI_REDIRECT_URI:-}
+      JYINSHI_CLOUD_ENABLED: ${JYINSHI_CLOUD_ENABLED:-false}
+      JYINSHI_CLOUD_BASE_URL: ${JYINSHI_CLOUD_BASE_URL:-}
+      JYINSHI_CLOUD_API_KEY: ${JYINSHI_CLOUD_API_KEY:-}
+      INGEST_ENABLED: ${INGEST_ENABLED:-true}
+      INGEST_PANSOU_ENABLED: ${INGEST_PANSOU_ENABLED:-true}
+      QUARK_RANKING_ENABLED: ${QUARK_RANKING_ENABLED:-true}
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+    ports:
+      - "127.0.0.1:3088:8888"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - jyinshi-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8888/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
         max-file: "3"
+
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-/api}
+    image: jyinshi-next-web:latest
+    container_name: jyinshi-next-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - jyinshi-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+  admin:
+    build:
+      context: ../admin
+      dockerfile: Dockerfile
+    image: jyinshi-next-admin:latest
+    container_name: jyinshi-next-admin
+    restart: unless-stopped
+    ports:
+      - "3081:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - jyinshi-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+networks:
+  jyinshi-net:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  pansou_cache:

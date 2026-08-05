@@ -43,16 +43,15 @@ git checkout main
 ### 3.1 开源区（在 `main` 上改，commit 用 `pub:`）
 
 - `server/`、`web/`、`admin/` 业务代码（不含硬编码生产域名/IP）
-- `deploy/init/`、`deploy/docker-compose.single.yml`、`deploy/deploy-single.sh`
-- `deploy/.env.single.example`、根目录 `.env.example`
-- 对外 README、LICENSE、开源向 `docs/`（脱敏后）
+- `deploy/init/`、`deploy/deploy.sh`、`deploy/.env.example`、`deploy/docker-compose.yml`
+- 对外 README、LICENSE、开源向 `docs/`（含 `docs/部署.md`）
 - `common/cloud/` 云端对接
 
 ### 3.2 自用区（在 `dev` 上改，commit 用 `priv:`，不进 `main`）
 
 - `deploy/deploy-guangzhou.sh`、`deploy/deploy-hk-gateway.sh`、`deploy/deploy-prod.sh`
 - `deploy/docker-compose.guangzhou.yml`、`docker-compose.hk-gateway.yml`、`docker-compose.prod.yml`
-- `docs/部署架构.md`（现网 IP/域名段）、`docs/产品决策*`、`docs/老站*`
+- 现网部署架构文档（IP/域名段）、`docs/产品决策*`、`docs/老站*`
 - 任何真实 `.env`（已在 `.gitignore`，禁止提交）
 - `backups/`、`scripts/migrate_*`
 
