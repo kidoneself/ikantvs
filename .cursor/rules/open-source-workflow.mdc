@@ -1,0 +1,81 @@
+---
+description: 开源 vs 自用分支与改动规范（git 工作流）
+alwaysApply: true
+---
+
+# 开源 vs 自用 · 分支与改动规范
+
+仓库：[kidoneself/ikantvs](https://github.com/kidoneself/ikantvs)
+
+## 1. 分支职责 · 按意图切换
+
+| 分支 | 什么时候用 | 内容边界 |
+|------|------------|----------|
+| **`dev`** | **默认**。自用、生产运维、内部文档、日常改代码 | 可含真实 IP/域名、广州/香港脚本 |
+| **`main`** | 用户说「**改开源**」「开源项目」「对外版」时，**先切到 main 再改** | 仅脱敏后的开源壳，不含自用文件 |
+| **`feature/*`** | 大改可选，从当前工作分支拉 | 合并回来源分支 |
+
+```bash
+# 默认（自用）
+git checkout dev
+
+# 用户明确要改开源时
+git checkout main
+# 改完 push origin main
+```
+
+**`main` 不是禁改**，只是「开源专用工作区」；没提到开源时，不要自动切过去。
+
+## 2. 改动分类 · 提交信息前缀
+
+| 前缀 | 含义 | 典型分支 |
+|------|------|----------|
+| **`pub:`** | 开源壳功能、部署模板、云端对接、对外文档 | `main`（或日后 cherry-pick 到 main） |
+| **`priv:`** | 自用运维、真实域名/IP、内部决策、生产发版 | `dev` |
+| **无前缀** | 共用修 bug / 重构 | 看当前分支；跨分支同步需人工决定 |
+
+示例：
+- `pub: 云端片库同步 client 初版`（在 main 上改）
+- `priv: 广州 deploy 脚本调 pansou 地址`（在 dev 上改）
+
+## 3. 路径分区
+
+### 3.1 开源区（在 `main` 上改，commit 用 `pub:`）
+
+- `server/`、`web/`、`admin/` 业务代码（不含硬编码生产域名/IP）
+- `deploy/init/`、`deploy/docker-compose.single.yml`、`deploy/deploy-single.sh`
+- `deploy/.env.single.example`、根目录 `.env.example`
+- 对外 README、LICENSE、开源向 `docs/`（脱敏后）
+- `common/cloud/` 云端对接
+
+### 3.2 自用区（在 `dev` 上改，commit 用 `priv:`，不进 `main`）
+
+- `deploy/deploy-guangzhou.sh`、`deploy/deploy-hk-gateway.sh`、`deploy/deploy-prod.sh`
+- `deploy/docker-compose.guangzhou.yml`、`docker-compose.hk-gateway.yml`、`docker-compose.prod.yml`
+- `docs/部署架构.md`（现网 IP/域名段）、`docs/产品决策*`、`docs/老站*`
+- 任何真实 `.env`（已在 `.gitignore`，禁止提交）
+- `backups/`、`scripts/migrate_*`
+
+### 3.3 `main` 上禁止出现
+
+- 真实 IP、域名（`naspt.vip`、`ikantvs.com`、`175.x`、`149.x` 等）
+- API Key、JWT、R2/迅雷 secret、cookie
+- §3.2 自用脚本与内部文档
+
+在 `main` 上改：**默认值用 `example.com`，环境变量占位，不写死生产值。**
+
+## 4. 两分支如何同步（可选，非每次必做）
+
+`dev` 与 `main` 允许分叉，不强制实时同步。
+
+| 方向 | 何时 | 做法 |
+|------|------|------|
+| **dev → main** | 自用功能成熟，要纳入开源版 | cherry-pick `pub:` 提交，或在 main 上重做同等改动 |
+| **main → dev** | 开源区修了 bug / 加了能力 | merge 或 cherry-pick 回 dev（自用文件保留不动） |
+
+## 5. AI / 协作约定
+
+- **未说明** → 默认 `git checkout dev`，按自用处理。
+- 用户说「**改开源**」「开源项目」「对外」「main」→ **`git checkout main`**，只动 §3.1，commit 用 **`pub:`**，遵守 §3.3。
+- 用户说「自用」「生产」「广州/香港」→ 在 **`dev`**，commit 用 **`priv:`**，不动 `main`。
+- 改完告知当前分支，并提示是否 `git push origin <branch>`。

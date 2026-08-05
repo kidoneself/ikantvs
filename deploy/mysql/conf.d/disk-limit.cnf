@@ -1,0 +1,7 @@
+[mysqld]
+# 70G 盘部署：限制 binlog 膨胀（单实例无主从，保留 7 天足够）
+binlog_expire_logs_seconds = 604800
+
+# 不开启 general log / slow log（默认关闭；此处显式声明，避免误开）
+general_log = 0
+slow_query_log = 0

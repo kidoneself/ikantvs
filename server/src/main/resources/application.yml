@@ -1,0 +1,192 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: jyinshi-server
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://localhost:3306/jyinshi_next?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:jyinshi}
+    password: ${DB_PASSWORD:jyinshi123}
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3000
+
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+    serialization:
+      write-dates-as-timestamps: false
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# 平台级开关
+jyinshi:
+  # 云端数据源（开源壳对接上游片库/取链的「一份链接」；未启用则用本地库）
+  cloud:
+    enabled: ${JYINSHI_CLOUD_ENABLED:false}
+    base-url: ${JYINSHI_CLOUD_BASE_URL:}
+    api-key: ${JYINSHI_CLOUD_API_KEY:}
+  # JWT
+  jwt:
+    secret: ${JWT_SECRET:change-me-please-this-is-a-dev-only-secret-key-32bytes+}
+    expiration-ms: ${JWT_EXPIRATION_MS:604800000}   # 7 天
+  # 元数据采集（海外机直连 TMDB，无需代理）
+  metadata:
+    tmdb:
+      api-key: ${TMDB_API_KEY:}
+      base-url: ${TMDB_BASE_URL:https://api.themoviedb.org/3}
+      image-base: ${TMDB_IMAGE_BASE:https://image.tmdb.org/t/p/w500}
+      backdrop-base: ${TMDB_BACKDROP_BASE:https://image.tmdb.org/t/p/w780}
+      language: ${TMDB_LANGUAGE:zh-CN}
+      timeout-ms: 8000
+    douban:
+      enabled: ${DOUBAN_ENABLED:false}
+      frodo-base: https://frodo.douban.com/api/v2
+      apikey: ${DOUBAN_APIKEY:}
+      secret: ${DOUBAN_SECRET:}
+      timeout-ms: 8000
+  # Cloudflare R2 海报存储（测试/正式同一套公网 URL）
+  storage:
+    r2:
+      enabled: ${R2_ENABLED:false}
+      endpoint: ${R2_ENDPOINT:}
+      access-key: ${R2_ACCESS_KEY:}
+      secret-key: ${R2_SECRET_KEY:}
+      bucket: ${R2_BUCKET:jyinshi-posters}
+      # 自定义域名或 R2 公开访问前缀，如 https://img.example.com
+      public-base: ${R2_PUBLIC_BASE:}
+      thumb-width: ${R2_THUMB_WIDTH:256}
+      backfill-batch-size: ${R2_BACKFILL_BATCH:200}
+      backfill-concurrency: ${R2_BACKFILL_CONCURRENCY:12}
+      download-timeout-ms: 15000
+  # 内容自动同步：定时拉新片/热播、刷新连载剧集数、重建自动榜单
+  content:
+    sync:
+      enabled: ${CONTENT_SYNC_ENABLED:true}
+      publish: ${CONTENT_SYNC_PUBLISH:true}
+      run-on-startup: ${CONTENT_SYNC_RUN_ON_STARTUP:true}
+      region: ${CONTENT_SYNC_REGION:}
+      trending-pages: ${CONTENT_SYNC_TRENDING_PAGES:1}
+      tv-pages: ${CONTENT_SYNC_TV_PAGES:1}
+      movie-pages: ${CONTENT_SYNC_MOVIE_PAGES:1}
+      max-imports-per-run: ${CONTENT_SYNC_MAX_IMPORTS:40}
+      refresh-batch-size: ${CONTENT_SYNC_REFRESH_BATCH:60}
+      refresh-min-interval-hours: ${CONTENT_SYNC_REFRESH_MIN_HOURS:12}
+      # cron：拉新每6小时 / 刷新连载每天04:00 / 重建榜单每2小时
+      discover-cron: ${CONTENT_SYNC_DISCOVER_CRON:0 0 */6 * * *}
+      refresh-cron: ${CONTENT_SYNC_REFRESH_CRON:0 0 4 * * *}
+      ranking-cron: ${CONTENT_SYNC_RANKING_CRON:0 0 */2 * * *}
+    # 热度回写：把近 N 天真实行为分（放大 behavior-weight 倍）叠加到 media.hot，实现「最热=行为优先」
+    hot:
+      enabled: ${HOT_ENABLED:true}
+      window-days: ${HOT_WINDOW_DAYS:14}
+      # 须大于 hot_seed 量级（本库上限约 1.4 万），才能让真实行为压过 TMDB 人气种子
+      behavior-weight: ${HOT_BEHAVIOR_WEIGHT:50000}
+      cron: ${HOT_CRON:0 30 3 * * *}
+  # 前台 media 列表/搜索 Redis 缓存（Redis 不可用时自动降级查库）
+  search:
+    cache:
+      enabled: ${SEARCH_CACHE_ENABLED:true}
+      ttl-minutes: ${SEARCH_CACHE_TTL_MINUTES:3}
+  # 资源聚合入库：来源插件（pansou/gying/seedhub/…）按剧名搜 → 去重 upsert 进 media_link
+  ingest:
+    enabled: ${INGEST_ENABLED:true}
+    relevance-threshold: ${INGEST_RELEVANCE_THRESHOLD:40}
+    cooldown-minutes: ${INGEST_COOLDOWN_MINUTES:10}
+    empty-cooldown-minutes: ${INGEST_EMPTY_COOLDOWN_MINUTES:3}
+    pansou:
+      enabled: ${INGEST_PANSOU_ENABLED:true}
+      base-url: ${PANSOU_BASE:http://pansou}
+      timeout-ms: ${INGEST_PANSOU_TIMEOUT_MS:12000}
+      # 留空=全要（所有网盘 + 磁力/ed2k 全部录入）；如需只要部分，填逗号分隔类型
+      cloud-types: ${INGEST_PANSOU_CLOUD_TYPES:}
+    # 观影(Gying)：需账号才启用，accounts 为空则该来源自动跳过；格式 user:pass,user2:pass2
+    gying:
+      enabled: ${INGEST_GYING_ENABLED:false}
+      base-url: ${GYING_BASE_URL:https://www.xn--wcv59z.com}
+      http-proxy: ${GYING_HTTP_PROXY:}
+      cookie-dir: ${GYING_COOKIE_DIR:cache/gying_cookies}
+      # 账号池 user:pass,user2:pass2（勿把真实账号写进仓库，用环境变量注入）
+      accounts: ${INGEST_GYING_ACCOUNTS:}
+      cloud-types: ${INGEST_GYING_CLOUD_TYPES:}
+      detail-concurrency: ${INGEST_GYING_DETAIL_CONCURRENCY:8}
+    # SeedHub：无需账号，需能出网访问站点（站点经常连不上，默认先关掉，少刷超时）
+    seedhub:
+      enabled: ${INGEST_SEEDHUB_ENABLED:false}
+      base-url: ${SEEDHUB_BASE_URL:https://www.seedhub.cc}
+      timeout-seconds: ${INGEST_SEEDHUB_TIMEOUT_SEC:10}
+      # 留空=全要（quark/baidu/xunlei/uc/aliyun）
+      pan-types: ${INGEST_SEEDHUB_PAN_TYPES:}
+      max-list-candidates: ${INGEST_SEEDHUB_MAX_LIST:5}
+      max-detail-fetch: ${INGEST_SEEDHUB_MAX_DETAIL:2}
+      score-gap-for-top2: ${INGEST_SEEDHUB_SCORE_GAP:15}
+      skip-non-chinese: ${INGEST_SEEDHUB_SKIP_NON_CHINESE:true}
+      link-start-concurrency: ${INGEST_SEEDHUB_LINK_CONCURRENCY:3}
+      pan-link-ttl-hours: ${INGEST_SEEDHUB_PAN_LINK_TTL_HOURS:24}
+    warm:
+      enabled: ${INGEST_WARM_ENABLED:true}
+      batch-size: ${INGEST_WARM_BATCH:30}
+      cron: ${INGEST_WARM_CRON:0 0 * * * *}
+  # 转存/追更：进程内执行器（PanJobRunner）直接领任务执行，无需独立 worker
+  transfer:
+    lease-seconds: ${TRANSFER_LEASE_SECONDS:120}
+    retry-backoff-seconds: ${TRANSFER_RETRY_BACKOFF_SECONDS:60}
+    # 迅雷 OAuth 默认值（作为 sys_config 初始种子；后台「迅雷转存」可覆盖）
+    xunlei:
+      client-id: ${XUNLEI_CLIENT_ID:}
+      client-secret: ${XUNLEI_CLIENT_SECRET:}
+      redirect-uri: ${XUNLEI_REDIRECT_URI:}
+    # 百度开放平台隐式授权（借用公开 app，无 secret；access_token 专供 worker 走 xpan 官方接口删除）
+    baidu:
+      client-id: ${BAIDU_CLIENT_ID:omiOnr2tYnN9vSyDErcVFWpPU2mZA7YO}
+      scope: ${BAIDU_SCOPE:basic,netdisk}
+  # 文档资源发现（FlowUs / kdocs）：任务级 parse_rules，改格式不用发版
+  doc-monitor:
+    enabled: ${DOC_MONITOR_ENABLED:true}
+    cron: ${DOC_MONITOR_CRON:0 30 * * * ?}
+  # 短剧：TGForwarder 导入；封面与老站可挂同一宿主机目录（内容哈希去重）
+  drama:
+    cover-path: ${DRAMA_COVER_PATH:/app/drama-covers}
+    cover-url-prefix: ${DRAMA_COVER_URL_PREFIX:/drama-covers}
+    import-token: ${DRAMA_IMPORT_TOKEN:}
+  # 运营本地上传（公告图等）：广州磁盘直出，走 /api/uploads，不经 R2
+  upload:
+    path: ${UPLOAD_PATH:/app/uploads}
+    url-prefix: ${UPLOAD_URL_PREFIX:/api/uploads}
+    public-base: ${UPLOAD_PUBLIC_BASE:}
+    max-bytes: ${UPLOAD_MAX_BYTES:5242880}
+  cors:
+    enforce-origin: ${CORS_ENFORCE_ORIGIN:false}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174}
+  # IP 防护：Redis 黑名单 + 接口限流 + 频繁触发限流自动封禁（跨实例共享）
+  ip-guard:
+    # 总开关：false = 黑名单/限流全部旁路（本地开发建议 false）
+    enabled: ${IP_GUARD_ENABLED:true}
+    # 白名单 IP（永不封禁），逗号分隔
+    whitelist: ${IP_GUARD_WHITELIST:127.0.0.1,::1,0:0:0:0:0:0:0:1}
+    # 窗口内被限流达到此次数则自动封禁（放宽：偶发超限不封，明显滥用才封）
+    auto-ban-threshold: ${IP_GUARD_AUTO_BAN_THRESHOLD:20}
+    # 自动封禁计数器窗口（秒）
+    auto-ban-counter-window: ${IP_GUARD_AUTO_BAN_WINDOW:180}
+    # 自动封禁时长（秒），默认 15 分钟：误伤真人几分钟就恢复；爬虫会被反复挡住
+    auto-ban-duration: ${IP_GUARD_AUTO_BAN_DURATION:900}

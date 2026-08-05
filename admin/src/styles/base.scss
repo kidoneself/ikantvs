@@ -1,0 +1,129 @@
+@import './variables.scss';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Helvetica Neue',
+    sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--brand);
+  text-decoration: none;
+}
+
+/* ---------- Element Plus 主题对齐（靛蓝 + 更圆润） ---------- */
+:root {
+  --el-color-primary: #4f46e5;
+  --el-color-primary-light-3: #7b73ec;
+  --el-color-primary-light-5: #a8a3f1;
+  --el-color-primary-light-7: #d3d0f8;
+  --el-color-primary-light-8: #e5e3fb;
+  --el-color-primary-light-9: #eef2ff;
+  --el-color-primary-dark-2: #4338ca;
+
+  --el-border-radius-base: 8px;
+  --el-border-color: var(--border);
+  --el-border-color-light: var(--border);
+  --el-border-color-lighter: var(--border);
+  --el-fill-color-blank: var(--surface);
+  --el-text-color-primary: var(--text);
+  --el-text-color-regular: var(--text-soft);
+  --el-font-size-base: 14px;
+}
+
+/* 卡片：更柔和的阴影 + 圆角，去掉默认硬边框观感 */
+.el-card {
+  --el-card-border-color: var(--border);
+  --el-card-border-radius: var(--radius);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-s) !important;
+}
+
+.el-card.is-never-shadow {
+  box-shadow: var(--shadow-s) !important;
+}
+
+.el-card__header {
+  border-bottom: 1px solid var(--border);
+  padding: 14px 18px;
+  font-weight: 600;
+}
+
+/* 表格：表头更清爽，行悬浮高亮 */
+.el-table {
+  --el-table-header-bg-color: var(--surface-2);
+  --el-table-header-text-color: var(--text-soft);
+  --el-table-border-color: var(--border);
+  --el-table-row-hover-bg-color: var(--brand-soft);
+  font-size: 13.5px;
+}
+
+.el-table th.el-table__cell {
+  font-weight: 600;
+}
+
+/* 按钮：主按钮更稳重 */
+.el-button {
+  font-weight: 500;
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--brand);
+  --el-button-border-color: var(--brand);
+  --el-button-hover-bg-color: var(--brand-hover);
+  --el-button-hover-border-color: var(--brand-hover);
+  --el-button-active-bg-color: var(--brand-hover);
+}
+
+/* 标签更圆润 */
+.el-tag {
+  border-radius: 6px;
+}
+
+/* 分页对齐 */
+.el-pagination {
+  --el-pagination-button-bg-color: transparent;
+}
+
+/* 全局滚动条美化 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 页面通用容器：统一进场动画 */
+.page,
+.dashboard {
+  animation: page-in 0.24s ease;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
