@@ -20,7 +20,7 @@ public class CorsProperties {
     private boolean enforceOrigin = false;
 
     /**
-     * 允许的来源，逗号分隔。例：{@code https://ikantvs.com,http://103.24.216.84:8080}
+     * 允许的来源，逗号分隔。例：{@code https://example.com,http://127.0.0.1:5173}
      */
     private String allowedOrigins = "http://localhost:5173,http://127.0.0.1:5173,"
             + "http://localhost:5174,http://127.0.0.1:5174";

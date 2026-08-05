@@ -585,7 +585,7 @@ onUnmounted(() => {
           v-model="xunleiCode"
           type="textarea"
           :rows="3"
-          placeholder="粘贴授权后地址栏完整 URL，形如 https://naspt.vip/api/auto-resource/xunlei/callback?code=xxx&state=yyy"
+          placeholder="粘贴授权后地址栏完整 URL，形如 https://example.com/api/auto-resource/xunlei/callback?code=xxx&state=yyy"
         />
         <el-button
           type="primary"

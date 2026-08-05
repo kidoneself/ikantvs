@@ -181,7 +181,7 @@ onMounted(() => {
     >
       <el-form label-width="88px">
         <el-form-item label="域名" required>
-          <el-input v-model="dlg.host" placeholder="如 naspt.vip（不用写 https / www）" />
+          <el-input v-model="dlg.host" placeholder="如 example.com（不用写 https / www）" />
         </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="dlg.enabled" />

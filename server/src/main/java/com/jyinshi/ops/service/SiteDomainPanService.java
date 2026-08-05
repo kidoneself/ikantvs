@@ -216,7 +216,7 @@ public class SiteDomainPanService {
     private static String requireHost(String raw) {
         String host = SiteHostResolver.normalize(raw);
         if (host == null) {
-            throw new BizException("域名无效，请填写如 naspt.vip");
+            throw new BizException("域名无效，请填写如 example.com");
         }
         return host;
     }
