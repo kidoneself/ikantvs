@@ -1,0 +1,78 @@
+# 生产 Caddy：页面小黄云 + API 灰云子域
+# ikantvs.com          仅静态前台（/api 走 api 子域）
+# api.ikantvs.com      灰云直连，仅 /api
+{
+	email admin@ikantvs.com
+	# 显式启用 HTTP/3(QUIC)：国内移动网络丢包高，h3 抗丢包、握手更快。
+	# ⚠️ 需在服务器防火墙/安全组放行 UDP 443，否则 h3 不生效（会静默回退 h2）。
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+# 后端反代统一收口：用 TCP 真实来源 {remote_host} 覆盖写可信 IP 头，并剥离客户端
+# 可能伪造的 CF-Connecting-IP / X-Forwarded-For / X-Real-IP，保证后端拿到的 IP 不可伪造
+# （否则攻击者塞假 IP 头即可绕过限流与封禁）。
+#
+# ⚠️ 当前 api 为「灰云/仅 DNS」直连 Caddy，{remote_host} 就是访客真实 IP，正确。
+#    若将来把 api 改走 Cloudflare「橙云」代理：{remote_host} 会变成 CF 边缘 IP，届时应改为
+#    透传并信任 CF-Connecting-IP（去掉下面对它的剥离），同时用防火墙只放行 CF 回源 IP 段，
+#    确保没人能绕过 CF 直连源站伪造该头。
+(backend_proxy) {
+	reverse_proxy backend:8888 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up -CF-Connecting-IP
+	}
+}
+
+ikantvs.com {
+	encode zstd gzip
+	handle {
+		reverse_proxy web:80
+	}
+}
+
+api.ikantvs.com {
+	encode zstd gzip
+	handle /api/* {
+		import backend_proxy
+	}
+	handle {
+		respond 404
+	}
+}
+
+# 后台域名：admin.ikantvs.com（HTTPS，同源 /api，供运营登录）
+# 该子域需在 Cloudflare 设为「仅 DNS / 灰云」直连本机，Caddy 才能签发证书。
+admin.ikantvs.com {
+	encode zstd gzip
+	handle /api/* {
+		import backend_proxy
+	}
+	handle {
+		reverse_proxy admin:80
+	}
+}
+
+# 网盘搜索前端：ps.ikantvs.com（pansou-web）。
+# 公网裸奔会被爬虫刷爆导致上游/IP 被封，所以加 basic_auth（账号 admin）。
+# 该子域需在 Cloudflare 设为「仅 DNS / 灰云」直连本机，Caddy 才能签发证书。
+# 改密码：docker exec jyinshi-next-caddy caddy hash-password --plaintext '新密码'，替换下方哈希后 ./deploy-prod.sh pansou（会重载 caddy）。
+ps.ikantvs.com {
+	basic_auth {
+		admin $2a$14$rrMX2ZuqEfGOvBK.qCup8OMaRe4h2zklooYAI6HKOGIluE9zagPuu
+	}
+	reverse_proxy pansou:80
+}
+
+# 后台备用入口：IP:8080（同源 /api，域名不可用时兜底）
+:8080 {
+	encode zstd gzip
+	handle /api/* {
+		import backend_proxy
+	}
+	handle {
+		reverse_proxy admin:80
+	}
+}

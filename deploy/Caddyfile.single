@@ -1,0 +1,46 @@
+# 单机单域名：前台 + /api 同源；后台走 :8080
+# SITE_DOMAIN / ACME_EMAIL 由 compose 注入（来自 .env.single）
+{
+	email {$ACME_EMAIL}
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+(backend_proxy) {
+	reverse_proxy backend:8888 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up -CF-Connecting-IP
+	}
+}
+
+{$SITE_DOMAIN} {
+	encode zstd gzip
+	handle /api/* {
+		import backend_proxy
+	}
+	handle {
+		reverse_proxy web:80
+	}
+}
+
+# 管理后台：http://服务器IP:8080（不占第二个域名）
+:8080 {
+	encode zstd gzip
+	handle /api/* {
+		import backend_proxy
+	}
+	handle {
+		reverse_proxy admin:80
+	}
+}
+
+# pansou 调试页：http://服务器IP:8899 （basic_auth，防爬）
+# 账号 admin / 密码见交付说明；改密：caddy hash-password 后替换下方哈希
+:8899 {
+	basic_auth {
+		admin $2a$14$V/WKf.SdAKLxMkniWSRn/u6PDWgr4s7Bwbyy8gtgNTkK5JfoWZeqy
+	}
+	reverse_proxy pansou:80
+}

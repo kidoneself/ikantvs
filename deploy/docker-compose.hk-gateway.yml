@@ -1,0 +1,74 @@
+# 香港网关：pansou + 海外静态前台 + Caddy（TMDB 反代 / pansou 内网入口）
+# 不再跑 backend / mysql / redis / admin（唯一后端在广州）。
+#
+# 切换：docker compose -f docker-compose.prod.yml down
+#       docker compose -f docker-compose.hk-gateway.yml up -d --build
+services:
+  pansou:
+    image: ghcr.io/fish2018/pansou-web:latest
+    container_name: jyinshi-pansou
+    restart: unless-stopped
+    environment:
+      CHANNELS: ${PANSOU_CHANNELS:-tgsearchers7,Aliyun_4K_Movies,bdbdndn11,yunpanx,bsbdbfjfjff,yp123pan,sbsbsnsqq,yunpanxunlei,tianyifc,BaiduCloudDisk,txtyzy,peccxinpd,gotopan,PanjClub,kkxlzy,baicaoZY,MCPH01,bdwpzhpd,ysxb48,jdjdn1111,yggpan,MCPH086,zaihuayun,Q66Share,Oscar_4Kmovies,ucwpzy,shareAliyun,alyp_1,dianyingshare,Quark_Movies,XiangxiuNBB,ydypzyfx,ucquark,xx123pan,yingshifenxiang123,zyfb123,tyypzhpd,tianyirigeng,cloudtianyi,hdhhd21,Lsp115,oneonefivewpfx,qixingzhenren,taoxgzy,Channel_Shares_115,tyysypzypd,vip115hot,wp123zy,yunpan139,yunpan189,yunpanuc,yydf_hzl,leoziyuan,pikpakpan,Q_dongman,yoyokuakeduanju}
+      ENABLED_PLUGINS: ${PANSOU_PLUGINS:-labi,zhizhen,shandian,duoduo,muou}
+      CACHE_TTL: ${PANSOU_CACHE_TTL:-60}
+    volumes:
+      - pansou_cache:/app/data/cache
+    ports:
+      - "127.0.0.1:8899:80"
+    mem_limit: 1g
+    networks:
+      - jyinshi-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-https://api.naspt.vip/api}
+    image: jyinshi-next-web:latest
+    container_name: jyinshi-next-web
+    restart: unless-stopped
+    networks:
+      - jyinshi-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: jyinshi-next-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.hk-gateway:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - pansou
+    networks:
+      - jyinshi-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+networks:
+  jyinshi-net:
+    driver: bridge
+
+volumes:
+  pansou_cache:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,106 @@
+# 广州生产：复用老项目 jyinshi 的 MySQL/Redis + Caddy（80/443 由 jyinshi-frontend 占用）
+# 只起 jyinshi-next 的 backend / web / admin，接入 external 网络 jyinshi_jyinshi-network。
+#
+# 用法（deploy 目录，.env.guangzhou 已配置）：
+#   docker compose -f docker-compose.guangzhou.yml up -d --build
+services:
+  backend:
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+    image: jyinshi-next-backend:latest
+    container_name: jyinshi-next-backend
+    restart: unless-stopped
+    env_file:
+      - .env.guangzhou
+    environment:
+      TZ: Asia/Shanghai
+      DB_URL: jdbc:mysql://jyinshi-mysql:3306/jyinshi_next?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USERNAME: ${DB_USERNAME:-jyinshi}
+      DB_PASSWORD: ${DB_PASSWORD:-jyinshi123}
+      REDIS_HOST: jyinshi-redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123456}
+      REDIS_DATABASE: "1"
+      CORS_ENFORCE_ORIGIN: ${CORS_ENFORCE_ORIGIN:-true}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://naspt.vip,https://www.naspt.vip,https://so.naspt.vip,https://ik.naspt.vip,https://admin.naspt.vip,https://ikantvs.com,https://www.ikantvs.com}
+      PANSOU_BASE: ${PANSOU_BASE:-https://pansou.ikantvs.com}
+      XUNLEI_REDIRECT_URI: ${XUNLEI_REDIRECT_URI:-https://api.naspt.vip/api/auto-resource/xunlei/callback}
+      # 与老站 jyinshi 共用短剧封面目录（内容哈希去重，双推只落一份）
+      DRAMA_COVER_PATH: /app/drama-covers
+      DRAMA_IMPORT_TOKEN: ${DRAMA_IMPORT_TOKEN:-drama_import_2026}
+      # 采集密钥：必须从 .env.guangzhou / .env 注入（application.yml 不再带默认值，避免进开源仓）
+      # deploy-guangzhou.sh prepare_env 会从 deploy/.env 生成 .env.guangzhou
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+      DOUBAN_ENABLED: ${DOUBAN_ENABLED:-true}
+      DOUBAN_APIKEY: ${DOUBAN_APIKEY:-}
+      DOUBAN_SECRET: ${DOUBAN_SECRET:-}
+      INGEST_GYING_ENABLED: ${INGEST_GYING_ENABLED:-true}
+      INGEST_GYING_ACCOUNTS: ${INGEST_GYING_ACCOUNTS:-}
+      # 开源壳用的云端模式：自营双机保持关闭，勿在广州 .env 里打开
+      JYINSHI_CLOUD_ENABLED: ${JYINSHI_CLOUD_ENABLED:-false}
+      # 公告/运营图：本机磁盘，经 /api/uploads 直出（不经 R2）
+      UPLOAD_PATH: /app/uploads
+      UPLOAD_PUBLIC_BASE: ${UPLOAD_PUBLIC_BASE:-https://ik.naspt.vip}
+      # 一次性重算 NAS 差集：逗号分隔百度 media_link_id；空则不跑
+      NAS_RECOMPUTE_LINKS: ${NAS_RECOMPUTE_LINKS:-}
+    volumes:
+      # 默认对齐老站 compose 的 ./data/drama-covers；可用 DRAMA_COVERS_HOST 覆盖
+      - ${DRAMA_COVERS_HOST:-/root/jyinshi/data/drama-covers}:/app/drama-covers
+      - ${UPLOADS_HOST:-/root/jyinshi-next/data/uploads}:/app/uploads
+    networks:
+      - jyinshi-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8888/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-/api}
+    image: jyinshi-next-web:latest
+    container_name: jyinshi-next-web
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - jyinshi-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+  admin:
+    build:
+      context: ../admin
+      dockerfile: Dockerfile
+    image: jyinshi-next-admin:latest
+    container_name: jyinshi-next-admin
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - jyinshi-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+networks:
+  jyinshi-network:
+    external: true
+    name: jyinshi_jyinshi-network

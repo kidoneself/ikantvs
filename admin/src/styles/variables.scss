@@ -1,0 +1,48 @@
+:root {
+  /* 中性背景与表面 */
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --surface-2: #f7f9fc;
+  --border: #e9edf3;
+  --border-strong: #dfe4ec;
+
+  /* 文本层级 */
+  --text: #0f172a;
+  --text-soft: #5a6679;
+  --text-muted: #94a3b8;
+
+  /* 品牌色（靛蓝） */
+  --brand: #4f46e5;
+  --brand-hover: #4338ca;
+  --brand-soft: #eef2ff;
+  --brand-soft-2: #e0e7ff;
+
+  /* 语义色 */
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #64748b;
+
+  /* 侧栏（深色玻璃质感） */
+  --sidebar-bg: #11162a;
+  --sidebar-bg-2: #0b0f1f;
+  --sidebar-text: #9aa4bf;
+  --sidebar-text-strong: #f1f4ff;
+  --sidebar-active: var(--brand);
+
+  /* 通用填充 */
+  --fill: #f1f5f9;
+  --primary: var(--brand);
+  --primary-soft: var(--brand-soft);
+
+  /* 尺寸 */
+  --header-h: 60px;
+  --sidebar-w: 232px;
+
+  /* 圆角与阴影 */
+  --radius: 12px;
+  --radius-s: 8px;
+  --shadow-s: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-m: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --shadow-lift: 0 8px 24px rgba(79, 70, 229, 0.12);
+}

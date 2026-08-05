@@ -1,0 +1,10 @@
+name = "ikantvs-seo"
+main = "src/worker.js"
+compatibility_date = "2024-11-01"
+workers_dev = false
+
+# 只拦这两类路径，其余（首页/搜索/静态资源）不进 Worker，零额外开销。
+routes = [
+  { pattern = "ikantvs.com/detail/*", zone_name = "ikantvs.com" },
+  { pattern = "ikantvs.com/sitemap.xml", zone_name = "ikantvs.com" },
+]

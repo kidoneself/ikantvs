@@ -1,0 +1,57 @@
+# 香港网关 Caddy：静态前台 + pansou + TMDB 反代（唯一 API 在广州 api.naspt.vip）
+{
+	email admin@ikantvs.com
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+# TMDB 反代（广州 backend 采集/海报镜像下载用）
+tmdb.ikantvs.com {
+	handle /3/* {
+		reverse_proxy https://api.themoviedb.org {
+			header_up Host api.themoviedb.org
+		}
+	}
+	handle /t/p/* {
+		reverse_proxy https://image.tmdb.org {
+			header_up Host image.tmdb.org
+		}
+	}
+	handle {
+		respond 404
+	}
+}
+
+# pansou 内网入口（广州 backend 调；建议安全组仅放行广州出口 IP）
+pansou.ikantvs.com {
+	reverse_proxy pansou:80
+}
+
+# pansou 人工调试入口（公开，无需账号密码）
+ps.ikantvs.com {
+	reverse_proxy pansou:80
+}
+
+# 海外静态前台 → API 走广州；短剧封面走广州后端（与老站同盘哈希文件）
+ikantvs.com, www.ikantvs.com {
+	encode zstd gzip
+	handle /drama-covers/* {
+		reverse_proxy https://api.naspt.vip {
+			header_up Host api.naspt.vip
+		}
+		header Cache-Control "public, max-age=2592000"
+	}
+	handle {
+		reverse_proxy web:80
+	}
+}
+
+# 旧域名 301 到广州
+api.ikantvs.com {
+	redir https://api.naspt.vip{uri} permanent
+}
+
+admin.ikantvs.com {
+	redir https://admin.naspt.vip{uri} permanent
+}

@@ -1,0 +1,44 @@
+# 本地依赖：MySQL + Redis
+# 空库首次启动会执行 init/（最终态 schema + 演示种子），不再重放 55 个历史迁移。
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: jyinshi-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: jyinshi_next
+      MYSQL_USER: jyinshi
+      MYSQL_PASSWORD: jyinshi123
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      - ./init:/docker-entrypoint-initdb.d:ro
+      - ./mysql/conf.d:/etc/mysql/conf.d:ro
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: jyinshi-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"

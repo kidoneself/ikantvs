@@ -1,0 +1,190 @@
+# 独立生产环境：MySQL + Redis + 后端 + 前台 + 后台 + Caddy（全套自建，不依赖老项目）
+#
+# 用法（在 deploy 目录，.env 已配置）：
+#   docker compose -f docker-compose.prod.yml up -d --build
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: jyinshi-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: jyinshi_next
+      MYSQL_USER: ${DB_USERNAME:-jyinshi}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-jyinshi123}
+      # 容器时区北京，容器内 date/日志与 backend 一致
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/conf.d:/etc/mysql/conf.d:ro
+    # default-time-zone=+08:00：CURRENT_TIMESTAMP 写北京时间，避免审计列(created_at/updated_at)少 8 小时
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-time-zone=+08:00
+    networks:
+      - jyinshi-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root123}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: jyinshi-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+    networks:
+      - jyinshi-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+  # 网盘资源搜索（fish2018/pansou-web，含前端）。内部走 nginx：http://pansou（80），
+  # Go 后端在容器内仅监听 127.0.0.1:8888，别的容器连不上，必须经 nginx。
+  # 宿主绑 127.0.0.1:8899 便于本机调试；公网前端由 Caddy 挂 ps.ikantvs.com（带 basic_auth）。
+  # 经常更新：./deploy-prod.sh pansou
+  pansou:
+    image: ghcr.io/fish2018/pansou-web:latest
+    container_name: jyinshi-pansou
+    restart: unless-stopped
+    environment:
+      CHANNELS: ${PANSOU_CHANNELS:-tgsearchers7,Aliyun_4K_Movies,bdbdndn11,yunpanx,bsbdbfjfjff,yp123pan,sbsbsnsqq,yunpanxunlei,tianyifc,BaiduCloudDisk,txtyzy,peccxinpd,gotopan,PanjClub,kkxlzy,baicaoZY,MCPH01,bdwpzhpd,ysxb48,jdjdn1111,yggpan,MCPH086,zaihuayun,Q66Share,Oscar_4Kmovies,ucwpzy,shareAliyun,alyp_1,dianyingshare,Quark_Movies,XiangxiuNBB,ydypzyfx,ucquark,xx123pan,yingshifenxiang123,zyfb123,tyypzhpd,tianyirigeng,cloudtianyi,hdhhd21,Lsp115,oneonefivewpfx,qixingzhenren,taoxgzy,Channel_Shares_115,tyysypzypd,vip115hot,wp123zy,yunpan139,yunpan189,yunpanuc,yydf_hzl,leoziyuan,pikpakpan,Q_dongman,yoyokuakeduanju}
+      ENABLED_PLUGINS: ${PANSOU_PLUGINS:-labi,zhizhen,shandian,duoduo,muou}
+      CACHE_TTL: ${PANSOU_CACHE_TTL:-60}
+    volumes:
+      - pansou_cache:/app/data/cache
+    ports:
+      - "127.0.0.1:8899:80"
+    mem_limit: 1g
+    networks:
+      - jyinshi-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+  backend:
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+    image: jyinshi-next-backend:latest
+    container_name: jyinshi-next-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # 容器时区：让 LocalDateTime.now() 走北京时间，避免前端把 UTC 裸时间误判/少显 8 小时
+      TZ: Asia/Shanghai
+      DB_URL: jdbc:mysql://mysql:3306/jyinshi_next?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USERNAME: ${DB_USERNAME:-jyinshi}
+      DB_PASSWORD: ${DB_PASSWORD:-jyinshi123}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_DATABASE: "0"
+      CORS_ENFORCE_ORIGIN: ${CORS_ENFORCE_ORIGIN:-true}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://ikantvs.com,https://cf.ikantvs.com,https://admin.ikantvs.com,http://103.24.216.84:8080}
+      PANSOU_BASE: ${PANSOU_BASE:-http://pansou}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - jyinshi-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8888/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-https://api.ikantvs.com/api}
+    image: jyinshi-next-web:latest
+    container_name: jyinshi-next-web
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - jyinshi-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+  admin:
+    build:
+      context: ../admin
+      dockerfile: Dockerfile
+    image: jyinshi-next-admin:latest
+    container_name: jyinshi-next-admin
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - jyinshi-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: jyinshi-next-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - backend
+      - web
+      - admin
+    networks:
+      - jyinshi-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+networks:
+  jyinshi-net:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  pansou_cache:

@@ -1,0 +1,52 @@
+# ===== 构建产物 =====
+target/
+dist/
+build/
+*.class
+*.jar
+!**/maven-wrapper.jar
+
+# ===== 依赖 =====
+node_modules/
+
+# ===== IDE =====
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# ===== 日志 / 缓存 / 运行态 =====
+logs/
+*.log
+cache/
+*.cache
+tmp/
+temp/
+scripts/.migrate_links_checkpoint.json
+scripts/.migrate_links_checkpoint.json.tmp
+
+# ===== 数据 / 持久卷 =====
+data/
+deploy/data/
+deploy/backups/
+
+# ===== 密钥 / 环境 =====
+.env
+.env.local
+.env.single
+.env.guangzhou
+.env.prod
+deploy/.env
+deploy/.env.single
+deploy/.env.guangzhou
+*.cookie.txt
+**/*token*.json
+
+# ===== 备份 / 整库导出（勿进公开仓）=====
+backups/
+
+# ===== 散落数据导出（老项目的教训：别再进仓库）=====
+*.tsv
+*.csv
+kdocs_*
+Untitled
