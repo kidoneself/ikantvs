@@ -34,10 +34,12 @@ deploy/backups/
 .env
 .env.local
 .env.single
+.env.baota
 .env.guangzhou
 .env.prod
 deploy/.env
 deploy/.env.single
+deploy/.env.baota
 deploy/.env.guangzhou
 *.cookie.txt
 **/*token*.json
