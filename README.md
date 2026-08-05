@@ -2,7 +2,7 @@
 
 网盘影视资源信息流平台（开源壳）。
 
-克隆 → 填域名 → 一条命令 Docker 起来；要完整片库再填**上游 API 链接 + Key**（云端对接开发中）。
+克隆 → 填域名 → Docker 起来。默认用**夸克热榜**灌片库，点片名用 **pansou** 搜链；后台可加**每日更新**。
 
 ## 快速开始（海外单机）
 
@@ -23,23 +23,22 @@ cd ikantvs/deploy
 | API | `https://你的域名/api/health` |
 | 后台 | `http://服务器IP:8080`（默认 `admin` / `admin123`，**务必改密**） |
 
-空库自动执行 [`deploy/init/`](deploy/init/)（schema + 演示数据）。
+空库自动执行 [`deploy/init/`](deploy/init/)；启动后会从夸克热榜同步一批片到本地库（需机器能访问外网）。
 
-### 数据模式
+## 开源默认能力（刻意保持简单）
 
-| 模式 | 配置 | 说明 |
-|------|------|------|
-| **本地演示**（默认） | 不填云端 | 仅演示片；可开 pansou 自采集 |
-| **对接云端** | `JYINSHI_CLOUD_*` | 片库/取链走运营方 API（接入中） |
+| 能力 | 说明 |
+|------|------|
+| **夸克热榜 → media** | 定时同步电影/剧/综艺/动漫排行（**无搜索接口**） |
+| **pansou 搜链** | 点卡片用片名搜网盘资源 |
+| **每日更新** | 后台选片或**手填片名新建**，再贴上游分享链 |
+
+可选：自己申请 [TMDB API Key](https://www.themoviedb.org/settings/api) 填进 `TMDB_API_KEY`，后台补录会更全；不填也能用。
 
 ```bash
-JYINSHI_CLOUD_ENABLED=true
-JYINSHI_CLOUD_BASE_URL=https://api.example.com/api
-JYINSHI_CLOUD_API_KEY=sk_xxx
-
-# 纯云端、不自采集：
-ENABLE_PANSOU=false
-INGEST_ENABLED=false
+# .env.single
+QUARK_RANKING_ENABLED=true   # 默认开
+TMDB_API_KEY=                # 可选
 ```
 
 远程发版：`DEPLOY_SERVER=root@IP ./deploy-single.sh all`
@@ -56,8 +55,6 @@ cd ../web && pnpm i && pnpm dev            # :5173
 cd ../admin && pnpm i && pnpm dev          # :5174
 ```
 
-根目录 [`.env.example`](.env.example) 供本地环境变量参考。
-
 ## 目录
 
 ```
@@ -73,14 +70,14 @@ ikantvs/
 
 | 分支 | 用途 |
 |------|------|
-| **`main`** | 开源壳（本分支），脱敏、可公开 |
-| **`dev`** | 维护者自用，含生产脚本（不对外交付） |
+| **`main`** | 开源壳（本分支） |
+| **`dev`** | 维护者自用 |
 
 ## 边界与免责
 
 - 无前台用户注册、无会员计费。
-- 本仓库**仅提供软件与部署能力**，不包含影视资源库数据。
-- **部署者须自行确保内容来源与运营的合法合规**；开发者不对第三方资源与使用者行为负责。
+- 夸克热榜为第三方公开接口，稳定性不保证；片库数据由部署者自行维护。
+- **部署者须自行确保内容来源与运营的合法合规**。
 - 勿提交真实 `.env`、SQL 备份、网盘 cookie。
 
 ## License

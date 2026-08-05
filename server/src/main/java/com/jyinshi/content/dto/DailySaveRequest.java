@@ -9,7 +9,14 @@ import java.util.List;
 public class DailySaveRequest {
 
     private Long id;
+    /** 已有剧；与 title 二选一（都没有则报错）。 */
     private Long mediaId;
+    /** 库里没有时：用片名新建一条瘦 media 再绑定。 */
+    private String title;
+    /** 新建时类型，默认 tv。 */
+    private String type;
+    /** 新建时年份，可选。 */
+    private Integer year;
     private Integer pinned;
     private Integer sort;
     private Integer enabled;

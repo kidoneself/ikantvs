@@ -68,7 +68,12 @@ export interface DailyItem {
 
 export interface DailySaveBody {
   id?: number
-  mediaId: number
+  /** 已有剧；与 title 二选一 */
+  mediaId?: number
+  /** 库没有时用片名新建 */
+  title?: string
+  type?: string
+  year?: number
   pinned?: number
   sort?: number
   enabled?: number

@@ -96,6 +96,15 @@ jyinshi:
       discover-cron: ${CONTENT_SYNC_DISCOVER_CRON:0 0 */6 * * *}
       refresh-cron: ${CONTENT_SYNC_REFRESH_CRON:0 0 4 * * *}
       ranking-cron: ${CONTENT_SYNC_RANKING_CRON:0 0 */2 * * *}
+    # 夸克影视热榜 → 灌入 media（开源默认；无搜索，仅排行）
+    quark-ranking:
+      enabled: ${QUARK_RANKING_ENABLED:true}
+      run-on-startup: ${QUARK_RANKING_RUN_ON_STARTUP:true}
+      hit-per-rank: ${QUARK_RANKING_HIT:40}
+      max-creates-per-run: ${QUARK_RANKING_MAX_CREATES:200}
+      api-url: ${QUARK_RANKING_API_URL:https://biz.quark.cn/api/trending/ranking/getYingshiRanking}
+      timeout-ms: ${QUARK_RANKING_TIMEOUT_MS:15000}
+      cron: ${QUARK_RANKING_CRON:0 20 */6 * * *}
     # 热度回写：把近 N 天真实行为分（放大 behavior-weight 倍）叠加到 media.hot，实现「最热=行为优先」
     hot:
       enabled: ${HOT_ENABLED:true}

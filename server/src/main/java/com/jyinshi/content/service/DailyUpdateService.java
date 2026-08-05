@@ -10,6 +10,7 @@ import com.jyinshi.content.dto.DailyLinkInput;
 import com.jyinshi.content.dto.DailyMonitorVO;
 import com.jyinshi.content.dto.DailyPatchRequest;
 import com.jyinshi.content.dto.DailySaveRequest;
+import com.jyinshi.content.dto.ManualMediaRequest;
 import com.jyinshi.content.dto.MediaVO;
 import com.jyinshi.content.entity.DailyUpdate;
 import com.jyinshi.content.entity.Media;
@@ -56,13 +57,16 @@ public class DailyUpdateService {
     private final MediaMapper mediaMapper;
     private final MediaLinkMapper mediaLinkMapper;
     private final TransferMonitorService monitorService;
+    private final MediaService mediaService;
 
     public DailyUpdateService(DailyUpdateMapper dailyMapper, MediaMapper mediaMapper,
-                              MediaLinkMapper mediaLinkMapper, TransferMonitorService monitorService) {
+                              MediaLinkMapper mediaLinkMapper, TransferMonitorService monitorService,
+                              MediaService mediaService) {
         this.dailyMapper = dailyMapper;
         this.mediaMapper = mediaMapper;
         this.mediaLinkMapper = mediaLinkMapper;
         this.monitorService = monitorService;
+        this.mediaService = mediaService;
     }
 
     // ---------------- 前台（公开） ----------------
@@ -160,30 +164,25 @@ public class DailyUpdateService {
 
     @Transactional
     public DailyItemVO save(DailySaveRequest req) {
-        if (req.getMediaId() == null) {
-            throw new BizException("请先选择要绑定的剧");
-        }
-        Media media = mediaMapper.selectById(req.getMediaId());
-        if (media == null) {
-            throw new BizException("绑定的剧不存在");
-        }
+        Media media = resolveMediaForSave(req);
         List<DailyLinkInput> links = normalizeLinks(req.getLinks());
         if (links.isEmpty()) {
             throw new BizException("至少填写一条上游分享链");
         }
 
+        Long mediaId = media.getId();
         // 1. upsert daily_update（一部剧至多一条）
         DailyUpdate d = req.getId() != null ? require(req.getId())
                 : dailyMapper.selectOne(Wrappers.<DailyUpdate>lambdaQuery()
-                        .eq(DailyUpdate::getMediaId, req.getMediaId()).last("limit 1"));
+                        .eq(DailyUpdate::getMediaId, mediaId).last("limit 1"));
         boolean isNew = (d == null);
         if (isNew) {
             d = new DailyUpdate();
-            d.setMediaId(req.getMediaId());
+            d.setMediaId(mediaId);
             d.setEnded(0);
             d.setCreatedAt(LocalDateTime.now());
         }
-        d.setMediaId(req.getMediaId());
+        d.setMediaId(mediaId);
         d.setPinned(nz(req.getPinned()));
         d.setSort(nz(req.getSort()));
         d.setEnabled(req.getEnabled() != null ? req.getEnabled() : 1);
@@ -203,6 +202,47 @@ public class DailyUpdateService {
             }
         }
         return adminGet(d.getId());
+    }
+
+    /**
+     * 选已有 media；没有则按片名新建瘦条目（可无海报）。
+     */
+    private Media resolveMediaForSave(DailySaveRequest req) {
+        if (req.getMediaId() != null) {
+            Media media = mediaMapper.selectById(req.getMediaId());
+            if (media == null) {
+                throw new BizException("绑定的剧不存在");
+            }
+            return media;
+        }
+        if (!StringUtils.hasText(req.getTitle())) {
+            throw new BizException("请先选择剧，或填写片名新建");
+        }
+        String title = req.getTitle().trim();
+        String type = StringUtils.hasText(req.getType()) ? req.getType().trim() : "tv";
+        // 同名同年尽量复用，避免重复建
+        var qw = Wrappers.<Media>lambdaQuery()
+                .eq(Media::getTitle, title)
+                .eq(Media::getType, type)
+                .last("limit 1");
+        if (req.getYear() != null) {
+            qw.eq(Media::getYear, req.getYear());
+        }
+        Media existing = mediaMapper.selectOne(qw);
+        if (existing != null) {
+            return existing;
+        }
+        ManualMediaRequest man = new ManualMediaRequest();
+        man.setTitle(title);
+        man.setType(type);
+        man.setYear(req.getYear());
+        man.setPublish(true);
+        MediaVO created = mediaService.createManual(man);
+        Media media = mediaMapper.selectById(created.getId());
+        if (media == null) {
+            throw new BizException("创建剧目失败");
+        }
+        return media;
     }
 
     /** 立即检查：给该剧所有自营链各入队一轮 probe（无视时段），返回入队条数。 */

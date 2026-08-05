@@ -220,6 +220,9 @@ const form = reactive<{
 const INTERVAL_OPTIONS = [5, 10, 15, 30, 60]
 // 选中剧的展示信息
 const pickedMedia = ref<Pick<AdminMedia, 'id' | 'title' | 'poster' | 'posterThumb' | 'type' | 'year'> | null>(null)
+/** 搜不到时：用片名新建（提交时不带 mediaId） */
+const pendingTitle = ref('')
+const pendingType = ref('tv')
 
 function resetForm() {
   form.id = undefined
@@ -231,6 +234,8 @@ function resetForm() {
   form.endHour = 23
   form.checkInterval = 30
   pickedMedia.value = null
+  pendingTitle.value = ''
+  pendingType.value = 'tv'
   searchKw.value = ''
   searchResults.value = []
   pasteText.value = ''
@@ -287,8 +292,8 @@ function removeLinkRow(i: number) {
 }
 
 async function submitForm() {
-  if (!form.mediaId) {
-    ElMessage.warning('请先选择要绑定的剧')
+  if (!form.mediaId && !pendingTitle.value.trim()) {
+    ElMessage.warning('请先选择剧，或用片名新建')
     return
   }
   const links = form.links.filter((l) => l.shareUrl.trim())
@@ -301,6 +306,8 @@ async function submitForm() {
     await saveDaily({
       id: form.id,
       mediaId: form.mediaId,
+      title: form.mediaId ? undefined : pendingTitle.value.trim(),
+      type: form.mediaId ? undefined : pendingType.value,
       links: links.map((l) => ({
         panType: l.panType,
         shareUrl: l.shareUrl.trim(),
@@ -375,9 +382,23 @@ async function doSearch() {
 
 function pickMedia(m: AdminMedia) {
   form.mediaId = m.id
+  pendingTitle.value = ''
   pickedMedia.value = { id: m.id, title: m.title, poster: m.poster, posterThumb: m.posterThumb, type: m.type, year: m.year }
   searchResults.value = []
   searchKw.value = ''
+}
+
+/** 库里没有：用搜索框片名新建一条再绑定（可无海报） */
+function useTitleAsNew() {
+  const t = searchKw.value.trim()
+  if (!t) {
+    ElMessage.warning('请先输入片名')
+    return
+  }
+  form.mediaId = undefined
+  pendingTitle.value = t
+  pickedMedia.value = { id: 0, title: t, type: pendingType.value, year: undefined }
+  searchResults.value = []
 }
 
 // ============ 粘贴识别（整段分享文本 → 链接 + 剧名，边贴边认）============
@@ -460,7 +481,11 @@ watch(pasteText, (text) => {
   pasteInfo.value = msg
 })
 
-const canSave = computed(() => !!form.mediaId && form.links.some((l) => l.shareUrl.trim()))
+const canSave = computed(
+  () =>
+    (!!form.mediaId || !!pendingTitle.value.trim()) &&
+    form.links.some((l) => l.shareUrl.trim()),
+)
 
 onMounted(() => {
   load()
@@ -641,13 +666,26 @@ onMounted(() => {
         <span v-else class="thumb empty">—</span>
         <div class="info">
           <div class="t">{{ pickedMedia.title }}</div>
-          <div class="s">{{ typeLabel(pickedMedia.type) }} · {{ pickedMedia.year || '—' }}</div>
+          <div class="s">
+            {{ form.mediaId ? typeLabel(pickedMedia.type) : '新建（可无海报）' }}
+            · {{ pickedMedia.year || '—' }}
+          </div>
         </div>
-        <el-button link type="primary" @click="pickedMedia = null; form.mediaId = undefined">重选</el-button>
+        <el-button
+          link
+          type="primary"
+          @click="pickedMedia = null; form.mediaId = undefined; pendingTitle = ''"
+        >重选</el-button>
       </div>
       <div v-else class="picker">
         <div class="search">
           <el-input v-model="searchKw" placeholder="搜剧名绑定" clearable @keyup.enter="doSearch" @clear="searchResults = []" />
+          <el-select v-model="pendingType" style="width: 100px" placeholder="类型">
+            <el-option label="剧集" value="tv" />
+            <el-option label="电影" value="movie" />
+            <el-option label="动漫" value="anime" />
+            <el-option label="综艺" value="variety" />
+          </el-select>
           <el-button type="primary" :loading="searching" @click="doSearch">搜索</el-button>
         </div>
         <div class="results">
@@ -660,7 +698,15 @@ onMounted(() => {
             </div>
             <el-button link type="primary">选它</el-button>
           </div>
-          <el-empty v-if="!searchResults.length" description="搜索并选择要绑定的剧" :image-size="48" />
+          <div v-if="searchKw.trim()" class="result create-new" @click="useTitleAsNew">
+            <span class="thumb empty">+</span>
+            <div class="info">
+              <div class="t">用「{{ searchKw.trim() }}」新建并绑定</div>
+              <div class="s">库里没有时用；可无海报，不影响挂链日更</div>
+            </div>
+            <el-button link type="primary">新建</el-button>
+          </div>
+          <el-empty v-else description="搜索并选择要绑定的剧" :image-size="48" />
         </div>
       </div>
 
@@ -907,6 +953,14 @@ onMounted(() => {
     }
     &:hover {
       background: var(--fill, #fafafa);
+    }
+    &.create-new {
+      border-bottom: none;
+      margin-top: 4px;
+      border-top: 1px dashed var(--border);
+      .t {
+        color: var(--el-color-primary);
+      }
     }
   }
 }

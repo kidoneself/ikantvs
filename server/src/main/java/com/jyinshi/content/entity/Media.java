@@ -73,7 +73,7 @@ public class Media implements Serializable {
     /** 0普通 1精品 2专区（付费分层预留） */
     private Integer tier;
 
-    /** 元数据来源：tmdb/douban/manual/none */
+    /** 元数据来源：tmdb/douban/quark/manual/none */
     private String metaSource;
 
     /** 发布状态：0草稿 1已发布 2下架 */
