@@ -7,17 +7,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 外部源（TMDB/豆瓣）抓回来的元数据统一载体。
+ * 外部源（TMDB）抓回来的元数据统一载体。
  * 各 client 解析自家 JSON 后填充本对象，service 再映射到 Media 实体。
  */
 @Data
 public class FetchedMetadata {
 
-    /** 来源：tmdb / douban */
+    /** 来源：tmdb */
     private String source;
 
     private Integer tmdbId;
-    private String doubanId;
 
     /** movie/tv/anime/variety */
     private String type;

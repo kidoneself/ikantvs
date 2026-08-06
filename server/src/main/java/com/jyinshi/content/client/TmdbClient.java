@@ -91,7 +91,7 @@ public class TmdbClient {
         return fetchDetail(tmdbId, isMovie, type);
     }
 
-    /** 从 TMDB 详情取 IMDb id（tt…），用于录入时反查豆瓣。 */
+    /** 从 TMDB 详情取 IMDb id（tt…）。 */
     public String fetchImdbId(int tmdbId, String type) {
         if (!isConfigured()) {
             return null;

@@ -26,7 +26,4 @@ public class MediaUpdateRequest {
 
     /** 手动补挂 TMDB id（仅写 id，不触发重采） */
     private Integer tmdbId;
-
-    /** 手动补挂豆瓣 subject id（仅写 id，不触发重采） */
-    private String doubanId;
 }

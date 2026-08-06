@@ -59,12 +59,6 @@ jyinshi:
       backdrop-base: ${TMDB_BACKDROP_BASE:https://image.tmdb.org/t/p/w780}
       language: ${TMDB_LANGUAGE:zh-CN}
       timeout-ms: 8000
-    douban:
-      enabled: ${DOUBAN_ENABLED:false}
-      frodo-base: https://frodo.douban.com/api/v2
-      apikey: ${DOUBAN_APIKEY:}
-      secret: ${DOUBAN_SECRET:}
-      timeout-ms: 8000
   # Cloudflare R2 海报存储（测试/正式同一套公网 URL）
   storage:
     r2:

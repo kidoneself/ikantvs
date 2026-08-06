@@ -482,14 +482,17 @@ public class StreamSearchService {
     }
 
     /**
-     * 实时搜索：只看各来源自身开关，不依赖入库总开关（用户搜链与后台采集解耦）。
+     * 实时搜索：不依赖入库总开关 {@code ingest.enabled}（用户搜链与后台采集解耦）。
+     * pansou 开关/地址以后台「资源采集」sys_config 为准，回退 yml/env。
      */
     private boolean liveSourceEnabled(LinkSource source) {
         if (source == null) {
             return false;
         }
         return switch (source.sourceName()) {
-            case "pansou" -> ingestProperties.getPansou().isEnabled();
+            case "pansou" -> sysConfigService.getBool(
+                    SysConfigService.INGEST_PANSOU_ENABLED,
+                    ingestProperties.getPansou().isEnabled());
             case "gying" -> ingestProperties.getGying().isEnabled();
             case "seedhub" -> ingestProperties.getSeedhub().isEnabled();
             default -> source.isEnabled();

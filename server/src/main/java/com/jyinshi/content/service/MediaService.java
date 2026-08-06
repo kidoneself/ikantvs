@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jyinshi.common.api.PageResult;
 import com.jyinshi.common.exception.BizException;
-import com.jyinshi.content.client.DoubanClient;
 import com.jyinshi.content.client.FetchedMetadata;
 import com.jyinshi.content.client.TmdbClient;
 import com.jyinshi.content.dto.AdminDashboardVO;
@@ -35,8 +34,8 @@ import java.util.stream.Collectors;
 /**
  * 内容域：媒体信息采集与查询。
  *
- * <p>三级元数据策略：TMDB(采集主源) → 豆瓣(补录兜底) → 仅录入标题(none)。
- * 链接不在这里，单独走 media_link（后续阶段）。
+ * <p>开源默认：夸克热榜灌库；可选 TMDB 采集；手工录入（none）。豆瓣采集已移除。
+ * 链接不在这里，单独走 media_link。
  */
 @Slf4j
 @Service
@@ -44,19 +43,17 @@ public class MediaService {
 
     private final MediaMapper mediaMapper;
     private final TmdbClient tmdbClient;
-    private final DoubanClient doubanClient;
     private final PosterMirrorService posterMirrorService;
     private final SensitiveWordService sensitiveWordService;
     private final MediaSeasonService mediaSeasonService;
     private final MediaSearchCacheService searchCacheService;
 
     public MediaService(MediaMapper mediaMapper,
-                        TmdbClient tmdbClient, DoubanClient doubanClient,
+                        TmdbClient tmdbClient,
                         PosterMirrorService posterMirrorService, SensitiveWordService sensitiveWordService,
                         MediaSeasonService mediaSeasonService, MediaSearchCacheService searchCacheService) {
         this.mediaMapper = mediaMapper;
         this.tmdbClient = tmdbClient;
-        this.doubanClient = doubanClient;
         this.posterMirrorService = posterMirrorService;
         this.sensitiveWordService = sensitiveWordService;
         this.mediaSeasonService = mediaSeasonService;
@@ -64,44 +61,36 @@ public class MediaService {
     }
 
     /**
-     * 单条采集：给 TMDB 或 豆瓣 的链接/ID，采那一个源（不做跨源兜底）。
+     * 单条采集：TMDB 链接或 ID（豆瓣已下线）。
      */
     @Transactional
     public MediaVO importByExternalId(MediaImportRequest req) {
         Integer tmdbId = req.getTmdbId();
-        String doubanId = req.getDoubanId();
         String type = req.getType();
 
-        // 解析链接 → 源 + id + 类型
         if (StringUtils.hasText(req.getUrl())) {
-            String[] tmdbRef = TmdbClient.parseRef(req.getUrl());
-            String dbId = DoubanClient.parseId(req.getUrl());
+            String url = req.getUrl().trim();
+            if (url.contains("douban.com")) {
+                throw new BizException("豆瓣采集已下线，请用 TMDB 链接/ID，或手工录入并上传海报");
+            }
+            String[] tmdbRef = TmdbClient.parseRef(url);
             if (tmdbRef != null) {
                 type = tmdbRef[0];
                 tmdbId = Integer.valueOf(tmdbRef[1]);
-            } else if (dbId != null) {
-                doubanId = dbId;
             } else {
-                throw new BizException("无法识别的链接，请用 TMDB 或 豆瓣 详情页链接");
+                throw new BizException("无法识别的链接，请用 TMDB 详情页链接");
             }
         }
 
-        FetchedMetadata meta;
-        if (tmdbId != null) {
-            if (!tmdbClient.isConfigured()) {
-                throw new BizException("TMDB 未配置 api-key，无法采集");
-            }
-            meta = tmdbClient.fetchById(tmdbId, type);
-            if (meta == null) {
-                throw new BizException("TMDB 未找到该条目（id=" + tmdbId + "）");
-            }
-        } else if (StringUtils.hasText(doubanId)) {
-            meta = doubanClient.fetchById(doubanId, type);
-            if (meta == null) {
-                throw new BizException("豆瓣未找到或抓取失败（id=" + doubanId + "）");
-            }
-        } else {
-            throw new BizException("请提供 TMDB/豆瓣 链接或 id");
+        if (tmdbId == null) {
+            throw new BizException("请提供 TMDB 链接或 id");
+        }
+        if (!tmdbClient.isConfigured()) {
+            throw new BizException("TMDB 未配置 api-key，无法采集");
+        }
+        FetchedMetadata meta = tmdbClient.fetchById(tmdbId, type);
+        if (meta == null) {
+            throw new BizException("TMDB 未找到该条目（id=" + tmdbId + "）");
         }
 
         Media saved = upsert(meta, Boolean.TRUE.equals(req.getPublish()));
@@ -133,30 +122,25 @@ public class MediaService {
         return MediaVO.from(m);
     }
 
-    /** 重新抓取（刷新元数据），按已存的 tmdbId/doubanId 重拉。 */
+    /** 重新抓取（刷新元数据），按已存的 tmdbId 重拉。 */
     @Transactional
     public MediaVO refresh(Long id) {
         Media existing = mediaMapper.selectById(id);
         if (existing == null) {
             throw new BizException("内容不存在");
         }
-        // 按内容自身的源刷新，不跨源
-        FetchedMetadata meta;
-        if ("douban".equals(existing.getMetaSource()) && StringUtils.hasText(existing.getDoubanId())) {
-            meta = doubanClient.fetchById(existing.getDoubanId(), existing.getType());
-        } else if (existing.getTmdbId() != null) {
-            meta = tmdbClient.fetchById(existing.getTmdbId(), existing.getType());
-        } else if (StringUtils.hasText(existing.getDoubanId())) {
-            meta = doubanClient.fetchById(existing.getDoubanId(), existing.getType());
-        } else {
-            throw new BizException("该内容无外部 id，无法刷新");
+        if ("douban".equalsIgnoreCase(existing.getMetaSource())) {
+            throw new BizException("豆瓣采集已下线，请改用 TMDB 重采或手工改海报");
         }
+        if (existing.getTmdbId() == null) {
+            throw new BizException("该内容无 TMDB id，无法刷新");
+        }
+        FetchedMetadata meta = tmdbClient.fetchById(existing.getTmdbId(), existing.getType());
         if (meta == null) {
             throw new BizException("重新抓取失败（源不可用）");
         }
         applyMeta(existing, meta);
         syncSeasonsIfPresent(existing.getId(), meta);
-        tryResolveComplementaryDoubanId(existing);
         existing.setUpdatedAt(LocalDateTime.now());
         mediaMapper.updateById(existing);
         posterMirrorService.mirrorMediaImages(existing);
@@ -400,17 +384,8 @@ public class MediaService {
             m.setSearchHidden(req.getSearchHidden() != 0 ? 1 : 0);
         }
         if (req.getTmdbId() != null) {
-            assertExternalIdAvailable(m.getId(), m.getType(), req.getTmdbId(), null);
+            assertExternalIdAvailable(m.getId(), m.getType(), req.getTmdbId());
             m.setTmdbId(req.getTmdbId());
-        }
-        if (req.getDoubanId() != null) {
-            String db = req.getDoubanId().trim();
-            if (StringUtils.hasText(db)) {
-                assertExternalIdAvailable(m.getId(), m.getType(), null, db);
-                m.setDoubanId(db);
-            } else {
-                m.setDoubanId(null);
-            }
         }
         m.setUpdatedAt(LocalDateTime.now());
         mediaMapper.updateById(m);
@@ -523,7 +498,6 @@ public class MediaService {
         if (existing != null) {
             applyMeta(existing, meta);
             seedHotIfEmpty(existing, meta);
-            tryResolveComplementaryDoubanId(existing);
             if (allowPublish && (existing.getPubStatus() == null || existing.getPubStatus() == 0)) {
                 existing.setPubStatus(1);
             }
@@ -537,7 +511,6 @@ public class MediaService {
         Media m = new Media();
         applyMeta(m, meta);
         seedHotIfEmpty(m, meta);
-        tryResolveComplementaryDoubanId(m);
         if (m.getHot() == null) {
             m.setHot(0);
         }
@@ -581,51 +554,15 @@ public class MediaService {
 
     private Media findExisting(FetchedMetadata meta) {
         if (meta.getTmdbId() != null) {
-            Media byTmdb = mediaMapper.selectOne(Wrappers.<Media>lambdaQuery()
+            return mediaMapper.selectOne(Wrappers.<Media>lambdaQuery()
                     .eq(Media::getTmdbId, meta.getTmdbId())
                     .eq(Media::getType, meta.getType())
-                    .last("limit 1"));
-            if (byTmdb != null) {
-                return byTmdb;
-            }
-        }
-        if (StringUtils.hasText(meta.getDoubanId())) {
-            return mediaMapper.selectOne(Wrappers.<Media>lambdaQuery()
-                    .eq(Media::getDoubanId, meta.getDoubanId())
                     .last("limit 1"));
         }
         return null;
     }
 
-    /**
-     * 录入 TMDB 条目时，经 IMDb 反查豆瓣 id 并写入（不覆盖元数据）。
-     * 若豆瓣 id 已被其它 media 占用则跳过，避免 uk 冲突。
-     */
-    private void tryResolveComplementaryDoubanId(Media m) {
-        if (m.getTmdbId() == null || StringUtils.hasText(m.getDoubanId())) {
-            return;
-        }
-        if (!doubanClient.isEnabled() || !tmdbClient.isConfigured()) {
-            return;
-        }
-        String imdb = tmdbClient.fetchImdbId(m.getTmdbId(), m.getType());
-        if (!StringUtils.hasText(imdb)) {
-            return;
-        }
-        String doubanId = doubanClient.resolveDoubanIdByImdb(imdb);
-        if (!StringUtils.hasText(doubanId)) {
-            return;
-        }
-        try {
-            assertExternalIdAvailable(m.getId(), m.getType(), null, doubanId);
-            m.setDoubanId(doubanId);
-            log.info("自动关联豆瓣 id：media={} tmdb={} douban={}", m.getId(), m.getTmdbId(), doubanId);
-        } catch (BizException e) {
-            log.info("自动关联豆瓣 id 跳过：media={} douban={} 原因={}", m.getId(), doubanId, e.getMessage());
-        }
-    }
-
-    private void assertExternalIdAvailable(Long mediaId, String type, Integer tmdbId, String doubanId) {
+    private void assertExternalIdAvailable(Long mediaId, String type, Integer tmdbId) {
         if (tmdbId != null && StringUtils.hasText(type)) {
             Media taken = mediaMapper.selectOne(Wrappers.<Media>lambdaQuery()
                     .eq(Media::getTmdbId, tmdbId)
@@ -636,15 +573,6 @@ public class MediaService {
                 throw new BizException("TMDB id 已被条目「" + taken.getTitle() + "」(id=" + taken.getId() + ") 占用");
             }
         }
-        if (StringUtils.hasText(doubanId)) {
-            Media taken = mediaMapper.selectOne(Wrappers.<Media>lambdaQuery()
-                    .eq(Media::getDoubanId, doubanId)
-                    .ne(mediaId != null, Media::getId, mediaId)
-                    .last("LIMIT 1"));
-            if (taken != null) {
-                throw new BizException("豆瓣 id 已被条目「" + taken.getTitle() + "」(id=" + taken.getId() + ") 占用");
-            }
-        }
     }
 
     /** 把抓取结果覆盖到实体（只覆盖非空字段，保留人工已填的）。 */
@@ -652,9 +580,6 @@ public class MediaService {
         m.setMetaSource(meta.getSource());
         if (meta.getTmdbId() != null) {
             m.setTmdbId(meta.getTmdbId());
-        }
-        if (StringUtils.hasText(meta.getDoubanId())) {
-            m.setDoubanId(meta.getDoubanId());
         }
         if (StringUtils.hasText(meta.getType())) {
             m.setType(meta.getType());

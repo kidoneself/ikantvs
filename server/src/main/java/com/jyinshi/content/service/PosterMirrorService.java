@@ -26,7 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 海报/背景图：从 TMDB/豆瓣 远程 URL 下载 → 上传 R2（全尺寸 + 列表缩略图）→ 回写 media。
+ * 海报/背景图：从 TMDB 等远程 URL 下载 → 上传 R2（全尺寸 + 列表缩略图）→ 回写 media。
  *
  * <p>已有 {@code poster} 不变；新增 {@code poster_thumb}（JPEG ~256px）。旧数据 thumb 为空时前台降级用 poster。
  */
@@ -162,7 +162,7 @@ public class PosterMirrorService {
     }
 
     /**
-     * 批量补季海报镜像（仍为 TMDB/豆瓣外链的条目）。
+     * 批量补季海报镜像（仍为外链的条目）。
      *
      * @return 成功写入 R2 的条数
      */

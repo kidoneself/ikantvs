@@ -106,12 +106,11 @@ async function pick(row: TmdbCandidate) {
 <template>
   <div class="media-import">
     <p class="hint">
-      粘贴 TMDB / 豆瓣详情页链接，或直接填 TMDB ID；也可按片名搜 TMDB 再选卡片入库。
-      从 TMDB 入库时会自动尝试关联豆瓣 id。
+      粘贴 TMDB 详情页链接，或直接填 TMDB ID；也可按片名搜 TMDB 再选卡片入库。
     </p>
 
     <div class="direct-row">
-      <el-input v-model="directForm.url" placeholder="TMDB / 豆瓣详情页链接" clearable style="flex: 1" />
+      <el-input v-model="directForm.url" placeholder="TMDB 详情页链接" clearable style="flex: 1" />
       <span class="or">或</span>
       <el-input v-model="directForm.tmdbId" placeholder="TMDB ID" style="width: 120px" />
       <el-select v-model="directForm.type" style="width: 100px">

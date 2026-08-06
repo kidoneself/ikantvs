@@ -39,14 +39,14 @@ public class MediaAdminController {
         this.tmdbClient = tmdbClient;
     }
 
-    /** 补录：喂 tmdbId 或 doubanId 抓元数据入库。 */
+    /** 补录：喂 tmdbId 或 TMDB 链接抓元数据入库。 */
     @PostMapping("/import")
     public Result<MediaVO> importByExternalId(@RequestBody MediaImportRequest req) {
         AuthContext.requireStaff();
         return Result.success(mediaService.importByExternalId(req));
     }
 
-    /** 仅录入：TMDB/豆瓣都没有时，人工建仅标题条目。 */
+    /** 仅录入：人工建条目（可填海报）。 */
     @PostMapping("/manual")
     public Result<MediaVO> manual(@Valid @RequestBody ManualMediaRequest req) {
         AuthContext.requireStaff();

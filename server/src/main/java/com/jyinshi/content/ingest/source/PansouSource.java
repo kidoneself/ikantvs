@@ -58,7 +58,15 @@ public class PansouSource implements LinkSource {
 
     /** pansou 服务地址：优先后台 sys_config（国内部署指反代），回退 yml/env 默认。 */
     private String baseUrl() {
-        return config.getOrDefault(SysConfigService.INGEST_PANSOU_BASE_URL, props.getPansou().getBaseUrl());
+        String u = config.getOrDefault(SysConfigService.INGEST_PANSOU_BASE_URL, props.getPansou().getBaseUrl());
+        if (u == null) {
+            return "";
+        }
+        // 后台常填 https://ps.xxx.com/ ，去掉尾斜杠再拼 /api/search
+        while (u.endsWith("/")) {
+            u = u.substring(0, u.length() - 1);
+        }
+        return u;
     }
 
     @Override

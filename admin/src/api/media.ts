@@ -64,7 +64,6 @@ export interface MediaUpdateBody {
   /** 1=关键词搜索不出现 */
   searchHidden?: number
   tmdbId?: number | null
-  doubanId?: string | null
 }
 
 export interface TmdbCandidate {
@@ -86,7 +85,6 @@ interface ApiPage<T> {
 export interface ImportBody {
   url?: string
   tmdbId?: number
-  doubanId?: string
   type?: string
   publish?: boolean
 }

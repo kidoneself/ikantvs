@@ -4,8 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
- * 仅录入：TMDB / 豆瓣都没有时，人工录入一个「仅标题」条目（meta_source=none）。
- * 后面有了外部 id 可再补抓。
+ * 仅录入：无外部源时，人工录入条目（meta_source=none）。
+ * 可带海报 URL；后面有了 TMDB id 可再补抓。
  */
 @Data
 public class ManualMediaRequest {

@@ -39,7 +39,6 @@ const form = reactive<MediaUpdateBody>({
   tier: 0,
   searchHidden: 0,
   tmdbId: undefined as number | undefined,
-  doubanId: '' as string,
 })
 
 const pubOptions = [
@@ -66,7 +65,6 @@ function applyMedia(m: AdminMedia | null | undefined) {
   form.tier = m.tier ?? 0
   form.searchHidden = m.searchHidden ?? 0
   form.tmdbId = m.tmdbId
-  form.doubanId = m.doubanId ?? ''
 }
 
 async function loadDetail(id: number) {
@@ -109,7 +107,6 @@ async function save() {
     const m = await updateMedia(props.mediaId, {
       ...form,
       title: form.title.trim(),
-      doubanId: form.doubanId?.trim() || '',
     })
     applyMedia(m)
     ElMessage.success('已保存')
@@ -178,12 +175,6 @@ function seasonLabel(s: SeasonVO) {
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="豆瓣 ID">
-          <el-input v-model="form.doubanId" placeholder="subject id，手动补挂" clearable />
-        </el-form-item>
-        <p class="field-hint id-hint">
-          录入 TMDB 时会自动经 IMDb 尝试反查豆瓣；失败或被占用时可在此手动填写（仅写 id，不重采元数据）。
-        </p>
         <el-form-item label="发布">
           <el-select v-model="form.pubStatus" style="width: 100%">
             <el-option v-for="o in pubOptions" :key="o.value" :label="o.label" :value="o.value" />

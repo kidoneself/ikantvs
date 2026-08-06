@@ -31,7 +31,7 @@ public class MediaSeasonService {
 
     /**
      * 用 TMDB 抓取的季列表 upsert；并删除 TMDB 已不存在的季号。
-     * 豆瓣等无季数据时不调用，保留已有记录。
+     * 无季数据时不调用，保留已有记录。
      */
     @Transactional
     public void syncFromFetched(Long mediaId, List<FetchedSeason> fetched) {

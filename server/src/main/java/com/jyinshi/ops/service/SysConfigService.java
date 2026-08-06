@@ -44,15 +44,6 @@ public class SysConfigService {
     public static final String META_TMDB_LANGUAGE = "metadata.tmdb.language";
     public static final String META_TMDB_TIMEOUT_MS = "metadata.tmdb.timeout-ms";
 
-    // 元数据采集（豆瓣补录）。
-    public static final String META_DOUBAN_ENABLED = "metadata.douban.enabled";
-    public static final String META_DOUBAN_APIKEY = "metadata.douban.apikey";
-    public static final String META_DOUBAN_SECRET = "metadata.douban.secret";
-    public static final String META_DOUBAN_FRODO_BASE = "metadata.douban.frodo-base";
-    public static final String META_DOUBAN_LEGACY_APIKEY = "metadata.douban.legacy-apikey";
-    public static final String META_DOUBAN_LEGACY_BASE = "metadata.douban.legacy-base";
-    public static final String META_DOUBAN_TIMEOUT_MS = "metadata.douban.timeout-ms";
-
     // 转存·迅雷开放平台应用级配置（所有迅雷账号共用一个 app），后台可改。
     public static final String TRANSFER_XUNLEI_CLIENT_ID = "transfer.xunlei.client-id";
     public static final String TRANSFER_XUNLEI_CLIENT_SECRET = "transfer.xunlei.client-secret";
@@ -85,7 +76,6 @@ public class SysConfigService {
     public static final String NOTIFY_WECHAT_TOKEN = "notify.wechat.token";
 
     private static final String GROUP_TMDB = "TMDB 采集";
-    private static final String GROUP_DOUBAN = "豆瓣采集";
     private static final String GROUP_XUNLEI = "迅雷转存";
     private static final String GROUP_NAS = "NAS灌盘";
     private static final String GROUP_INGEST = "资源采集";
@@ -169,28 +159,6 @@ public class SysConfigService {
         schema.add(new ConfigDef(META_TMDB_TIMEOUT_MS, "超时(毫秒)", GROUP_TMDB, TYPE_NUMBER,
                 null, "TMDB 请求超时（毫秒）",
                 seed("jyinshi.metadata.tmdb.timeout-ms", "8000")));
-
-        schema.add(new ConfigDef(META_DOUBAN_ENABLED, "启用豆瓣补录", GROUP_DOUBAN, TYPE_BOOL,
-                null, "开启后用豆瓣作为元数据补录兜底",
-                seed("jyinshi.metadata.douban.enabled", "true")));
-        schema.add(new ConfigDef(META_DOUBAN_APIKEY, "豆瓣 apikey", GROUP_DOUBAN, TYPE_SECRET,
-                null, "frodo 移动端 apikey（来自豆瓣 App，一般无需修改）",
-                seed("jyinshi.metadata.douban.apikey", "")));
-        schema.add(new ConfigDef(META_DOUBAN_SECRET, "豆瓣签名密钥", GROUP_DOUBAN, TYPE_SECRET,
-                null, "frodo HMAC-SHA1 签名密钥",
-                seed("jyinshi.metadata.douban.secret", "")));
-        schema.add(new ConfigDef(META_DOUBAN_FRODO_BASE, "frodo 接口地址", GROUP_DOUBAN, TYPE_TEXT,
-                null, "豆瓣 frodo 接口基址",
-                seed("jyinshi.metadata.douban.frodo-base", "https://frodo.douban.com/api/v2")));
-        schema.add(new ConfigDef(META_DOUBAN_LEGACY_APIKEY, "豆瓣旧版 apikey", GROUP_DOUBAN, TYPE_SECRET,
-                null, "api.douban.com 旧版 apikey（IMDb 反查 subject id 用）",
-                seed("jyinshi.metadata.douban.legacy-apikey", "0ab215a8b1977939201640fa14c66bab")));
-        schema.add(new ConfigDef(META_DOUBAN_LEGACY_BASE, "豆瓣旧版接口地址", GROUP_DOUBAN, TYPE_TEXT,
-                null, "api.douban.com 旧版接口基址",
-                seed("jyinshi.metadata.douban.legacy-base", "https://api.douban.com/v2")));
-        schema.add(new ConfigDef(META_DOUBAN_TIMEOUT_MS, "超时(毫秒)", GROUP_DOUBAN, TYPE_NUMBER,
-                null, "豆瓣请求超时（毫秒）",
-                seed("jyinshi.metadata.douban.timeout-ms", "8000")));
 
         schema.add(new ConfigDef(TRANSFER_XUNLEI_CLIENT_ID, "迅雷 client_id", GROUP_XUNLEI, TYPE_SECRET,
                 null, "迅雷开放平台 client_id（转存/追更迅雷账号必填）",

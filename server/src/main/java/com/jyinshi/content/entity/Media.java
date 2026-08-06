@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 /**
  * 媒体信息（content 域）。一部影视/一个条目一行，元数据单独存。
  *
- * <p>身份锚定外部 id：优先 {@link #tmdbId}（采集主源），其次 {@link #doubanId}（补录），
+ * <p>外部身份：优先 {@link #tmdbId}；历史 {@link #doubanId} 仅保留列、不再采集。
  * 都没有则建「仅标题」条目（{@link #metaSource} = none）。网盘链接不在这里，单独挂在 media_link。
  */
 @Data
@@ -73,7 +73,7 @@ public class Media implements Serializable {
     /** 0普通 1精品 2专区（付费分层预留） */
     private Integer tier;
 
-    /** 元数据来源：tmdb/douban/quark/manual/none */
+    /** 元数据来源：tmdb/quark/manual/none（历史 douban 仅存量） */
     private String metaSource;
 
     /** 发布状态：0草稿 1已发布 2下架 */
