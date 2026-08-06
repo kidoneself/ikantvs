@@ -111,14 +111,6 @@ export const ADMIN_MENUS: MenuItem[] = [
         ready: true,
         minRole: 'admin',
       },
-      {
-        key: 'site-domains',
-        title: '域名网盘',
-        icon: 'Link',
-        path: '/ops/site-domains',
-        ready: true,
-        minRole: 'admin',
-      },
     ],
   },
   {
@@ -157,7 +149,6 @@ export const ROUTE_TITLES: Record<string, string> = {
   'doc-monitor': '文档资源发现',
   'ip-guard': 'IP 防护',
   'live-qrcode': '活码 / 加群',
-  'site-domains': '域名网盘',
   users: '账号管理',
   settings: '系统配置',
 }
@@ -174,7 +165,6 @@ export const ROUTE_MIN_ROLE: Record<string, StaffRole> = {
   'doc-monitor': 'admin',
   'ip-guard': 'admin',
   'live-qrcode': 'admin',
-  'site-domains': 'admin',
   users: 'admin',
   settings: 'admin',
 }

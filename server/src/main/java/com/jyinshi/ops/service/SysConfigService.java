@@ -122,8 +122,7 @@ public class SysConfigService {
                 DEFAULT_PAN_ORDER));
         for (String[] pan : PAN_DISPLAY) {
             schema.add(new ConfigDef(PAN_DISPLAY_PREFIX + pan[1], pan[0], "网盘展示", TYPE_BOOL,
-                    null, "全局默认/采集用；已在「域名网盘」配置的站点以前台域名开关为准。关闭后未单独配置的域名不显示「"
-                            + pan[0] + "」", "true"));
+                    null, "关闭后前台不显示「" + pan[0] + "」页签，采集也不再写入该类型", "true"));
         }
 
         // 默认值取 application.yml / 环境变量（首次启动播种），之后以库为准、后台可改。
@@ -291,11 +290,6 @@ public class SysConfigService {
             flags.put(pan[1], getBool(PAN_DISPLAY_PREFIX + pan[1], true));
         }
         return enabledPanTypesFromFlags(flags);
-    }
-
-    /** 网盘选项（label + slug），后台域名开关与全局 pan.display 共用。 */
-    public List<String[]> panDisplayOptions() {
-        return List.copyOf(PAN_DISPLAY);
     }
 
     /** 按 slug 开关集合生成前台 label 列表（尊重页签顺序）。 */

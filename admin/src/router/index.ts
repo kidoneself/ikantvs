@@ -81,12 +81,6 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '活码 / 加群' },
       },
       {
-        path: 'ops/site-domains',
-        name: 'site-domains',
-        component: () => import('@/views/ops/SiteDomains.vue'),
-        meta: { title: '域名网盘' },
-      },
-      {
         path: 'system/users',
         name: 'users',
         component: () => import('@/views/system/UserList.vue'),

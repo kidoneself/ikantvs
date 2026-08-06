@@ -237,18 +237,6 @@ CREATE TABLE IF NOT EXISTS `live_qrcode_log` (
   KEY `idx_log_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='活码访问日志';
 
-CREATE TABLE IF NOT EXISTS `site_domain_config` (
-  `id`         BIGINT       NOT NULL AUTO_INCREMENT,
-  `host`       VARCHAR(128) NOT NULL,
-  `enabled`    TINYINT      NOT NULL DEFAULT 1,
-  `pans_json`  JSON         NOT NULL,
-  `remark`     VARCHAR(255) DEFAULT NULL,
-  `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_host` (`host`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='域名网盘开关';
-
 CREATE TABLE IF NOT EXISTS `doc_monitor_task` (
   `id`               BIGINT        NOT NULL AUTO_INCREMENT,
   `source`           VARCHAR(32)   NOT NULL DEFAULT 'flowus',

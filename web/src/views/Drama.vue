@@ -37,7 +37,7 @@ const subtitle = computed(() => {
 })
 
 /**
- * 短剧专区不受域名网盘开关影响（开关只约束搜索列表出迅雷/磁力等）。
+ * 短剧专区不受全局网盘展示开关影响（开关只约束搜索列表出迅雷/磁力等）。
  * 有夸克/百度链就展示并可转存。
  */
 const visibleRows = computed(() => rows.value)

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import QRCode from 'qrcode'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import { uploadAdminImage } from '@/api/config'
 import {
@@ -10,9 +9,6 @@ import {
   updateLiveQrcodeConfig,
   type LiveQrcodeStats,
 } from '@/api/liveQrcode'
-
-/** 推广活码根 URL；部署后改为你的前台域名 + /qr */
-const PROMO_BASE = 'https://example.com/qr'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -35,51 +31,6 @@ const stats = ref<LiveQrcodeStats>({
   trendStats: [],
 })
 
-const customSource = ref('')
-const customChannels = ref<string[]>([])
-const canvasRefs = ref<Record<string, HTMLCanvasElement>>({})
-
-const defaultChannels = [
-  { name: 'default', label: '默认', from: '' },
-  { name: 'wangpan', label: '网盘', from: 'wangpan' },
-  { name: 'xiaohongshu', label: '小红书', from: 'xiaohongshu' },
-  { name: 'website', label: '网站', from: 'website' },
-]
-
-const qrcodeList = computed(() => {
-  const list = defaultChannels.map((ch) => ({
-    ...ch,
-    url: ch.from ? `${PROMO_BASE}?from=${ch.from}` : PROMO_BASE,
-  }))
-  for (const ch of customChannels.value) {
-    list.push({ name: ch, label: ch, from: ch, url: `${PROMO_BASE}?from=${ch}` })
-  }
-  return list
-})
-
-function setCanvasRef(el: unknown, name: string) {
-  if (el instanceof HTMLCanvasElement) canvasRefs.value[name] = el
-}
-
-async function generateAllQrcodes() {
-  await nextTick()
-  for (const item of qrcodeList.value) {
-    const canvas = canvasRefs.value[item.name]
-    if (!canvas) continue
-    try {
-      await QRCode.toCanvas(canvas, item.url, {
-        width: 140,
-        margin: 2,
-        color: { dark: '#000000', light: '#FFFFFF' },
-      })
-    } catch {
-      /* ignore */
-    }
-  }
-}
-
-watch(qrcodeList, () => void generateAllQrcodes(), { deep: true })
-
 async function load() {
   loading.value = true
   try {
@@ -93,7 +44,6 @@ async function load() {
       scanCount: cfg.scanCount || 0,
     }
     stats.value = st
-    await generateAllQrcodes()
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '加载失败')
   } finally {
@@ -147,33 +97,6 @@ async function uploadMp(file: File) {
   return false
 }
 
-function copyLink(url: string) {
-  navigator.clipboard.writeText(url).then(
-    () => ElMessage.success('已复制'),
-    () => ElMessage.error('复制失败'),
-  )
-}
-
-function downloadQrcode(name: string, label: string) {
-  const canvas = canvasRefs.value[name]
-  if (!canvas) return
-  const a = document.createElement('a')
-  a.download = `活码-${label}.png`
-  a.href = canvas.toDataURL('image/png')
-  a.click()
-}
-
-function addCustomChannel() {
-  const name = customSource.value.trim().toLowerCase()
-  if (!name) return
-  if (customChannels.value.includes(name) || defaultChannels.some((c) => c.from === name)) {
-    ElMessage.warning('该渠道已存在')
-    return
-  }
-  customChannels.value.push(name)
-  customSource.value = ''
-}
-
 onMounted(load)
 </script>
 
@@ -181,7 +104,7 @@ onMounted(load)
   <div class="page" v-loading="loading">
     <PageHeader
       title="活码 / 加群"
-      description="群码与公众号可分别上传；站内弹窗与 /qr 活码页共用。换群只换图，已发出去的投放码不用重打。"
+      description="上传群码与公众号图；站内弹窗与 /qr 活码页共用。换群只换图即可。"
     />
 
     <el-row :gutter="16">
@@ -263,29 +186,6 @@ onMounted(load)
         </el-card>
       </el-col>
     </el-row>
-
-    <el-card shadow="never" class="block" style="margin-top: 16px">
-      <template #header>
-        <div class="card-head">
-          <span>推广活码（部署后改为你的域名/qr）</span>
-          <div class="custom">
-            <el-input v-model="customSource" placeholder="自定义渠道" style="width: 160px" @keyup.enter="addCustomChannel" />
-            <el-button :disabled="!customSource.trim()" @click="addCustomChannel">生成</el-button>
-          </div>
-        </div>
-      </template>
-      <div class="promo-grid">
-        <div v-for="item in qrcodeList" :key="item.name" class="promo-item">
-          <div class="name">{{ item.label }}</div>
-          <canvas :ref="(el) => setCanvasRef(el, item.name)" />
-          <div class="ops">
-            <el-button size="small" @click="copyLink(item.url)">复制链接</el-button>
-            <el-button size="small" type="primary" @click="downloadQrcode(item.name, item.label)">下载</el-button>
-          </div>
-          <code class="url">{{ item.url }}</code>
-        </div>
-      </div>
-    </el-card>
   </div>
 </template>
 
@@ -347,51 +247,6 @@ onMounted(load)
   .l {
     color: var(--text-soft);
     font-size: 0.85rem;
-  }
-}
-
-.card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.custom {
-  display: flex;
-  gap: 8px;
-}
-
-.promo-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 16px;
-}
-
-.promo-item {
-  text-align: center;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-
-  .name {
-    font-weight: 600;
-    margin-bottom: 8px;
-  }
-
-  .ops {
-    display: flex;
-    justify-content: center;
-    gap: 6px;
-    margin: 8px 0;
-  }
-
-  .url {
-    display: block;
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    word-break: break-all;
   }
 }
 </style>
