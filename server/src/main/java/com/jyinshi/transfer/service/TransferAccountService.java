@@ -238,7 +238,7 @@ public class TransferAccountService {
     }
 
     /**
-     * 取某网盘的监控转存专用号整行（含 id / credential），供 NAS 灌盘等需要账号 id 的场景。
+     * 取某网盘的监控转存专用号整行（含 id / credential）。
      * <p>优先 role=monitor。迅雷一号两用：没有 monitor 时回退到该盘任意启用且有凭据的号。</p>
      */
     public TransferAccount findMonitorAccount(String panType) {

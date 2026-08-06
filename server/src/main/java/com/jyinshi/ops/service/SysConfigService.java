@@ -41,10 +41,6 @@ public class SysConfigService {
     public static final String TRANSFER_XUNLEI_CLIENT_SECRET = "transfer.xunlei.client-secret";
     public static final String TRANSFER_XUNLEI_DEVICE_ID = "transfer.xunlei.device-id";
     public static final String TRANSFER_XUNLEI_REDIRECT_URI = "transfer.xunlei.redirect-uri";
-    /** NAS 灌盘总开关（百度监控成功后差集入队）；默认关，发版后再开。 */
-    public static final String TRANSFER_NAS_ENABLED = "transfer.nas.enabled";
-    /** 千云 wake 基址，如 http://nas:8234 ；空=只靠千云轮询。 */
-    public static final String TRANSFER_NAS_WAKE_URL = "transfer.nas.wake-url";
 
     // 资源采集·pansou 来源——地址随部署环境变（国内部署指向海外反代），后台可改。
     public static final String INGEST_PANSOU_ENABLED = "ingest.pansou.enabled";
@@ -68,7 +64,6 @@ public class SysConfigService {
     public static final String NOTIFY_WECHAT_TOKEN = "notify.wechat.token";
 
     private static final String GROUP_XUNLEI = "迅雷转存";
-    private static final String GROUP_NAS = "NAS灌盘";
     private static final String GROUP_INGEST = "资源采集";
     private static final String GROUP_NOTICE = "网站公告";
     private static final String GROUP_NOTIFY = "运维通知";
@@ -144,13 +139,6 @@ public class SysConfigService {
         schema.add(new ConfigDef(TRANSFER_XUNLEI_REDIRECT_URI, "迅雷回调地址", GROUP_XUNLEI, TYPE_TEXT,
                 null, "OAuth redirect_uri，须与迅雷开放平台登记完全一致",
                 seed("jyinshi.transfer.xunlei.redirect-uri", "")));
-
-        schema.add(new ConfigDef(TRANSFER_NAS_ENABLED, "启用 NAS 灌盘", GROUP_NAS, TYPE_BOOL,
-                null, "百度监控成功后灌迅雷：落地夹空则首灌，有货后只追新（可经千云）",
-                "false"));
-        schema.add(new ConfigDef(TRANSFER_NAS_WAKE_URL, "千云 wake 地址", GROUP_NAS, TYPE_TEXT,
-                null, "如 http://nas-host:8234 ；空则只靠千云轮询认领",
-                ""));
 
         schema.add(new ConfigDef(INGEST_PANSOU_ENABLED, "启用 pansou 采集", GROUP_INGEST, TYPE_BOOL,
                 null, "关闭后不调 pansou 搜网盘资源",

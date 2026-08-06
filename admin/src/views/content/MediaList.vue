@@ -12,7 +12,6 @@ import {
   isSeriesType,
   listPosterUrl,
   seriesSummary,
-  storageStatus,
   typeLabel,
   publicSiteBase,
   type AdminMedia,
@@ -23,7 +22,6 @@ const publicSite = publicSiteBase()
 const activeTab = ref('list')
 
 const loading = ref(false)
-const r2Ready = ref(false)
 const creating = ref(false)
 const uploadingPoster = ref(false)
 
@@ -61,14 +59,6 @@ async function loadList() {
     ElMessage.error(e instanceof Error ? e.message : '加载失败')
   } finally {
     loading.value = false
-  }
-}
-
-async function loadStatus() {
-  try {
-    r2Ready.value = (await storageStatus()).ready
-  } catch {
-    r2Ready.value = false
   }
 }
 
@@ -151,7 +141,6 @@ onMounted(() => {
   const tab = route.query.tab as string | undefined
   if (tab === 'manual' || tab === 'import' || tab === 'tmdb') activeTab.value = 'manual'
   if (typeof route.query.q === 'string') form.title = route.query.q
-  loadStatus()
   loadList()
 })
 
@@ -173,12 +162,9 @@ watch(
 
 <template>
   <div class="page">
-    <PageHeader title="影视库" description="夸克热榜自动灌库；缺片可手工录入并本地上传海报（无需 TMDB / R2）">
+    <PageHeader title="影视库" description="夸克热榜自动灌库；缺片可手工录入">
       <template #extra>
         <el-tag>共 {{ total }} 条</el-tag>
-        <el-tag :type="r2Ready ? 'success' : 'info'" style="margin-left: 8px" title="可选：镜像远程海报">
-          R2 {{ r2Ready ? '就绪' : '未配（可选）' }}
-        </el-tag>
       </template>
     </PageHeader>
 
@@ -262,10 +248,6 @@ watch(
 
       <el-tab-pane label="手工录入" name="manual">
         <el-card shadow="never" class="block">
-          <p class="hint">
-            标题 + 类型即可入库；海报请本地上传（落盘到本机
-            <code>/api/uploads/poster/...</code>），不必配 R2 / TMDB。
-          </p>
           <el-form label-width="88px" style="max-width: 560px" @submit.prevent="submitManual">
             <el-form-item label="标题" required>
               <el-input v-model="form.title" placeholder="片名" />
@@ -326,13 +308,6 @@ watch(
 
 .block {
   border: 1px solid var(--border);
-}
-
-.hint {
-  margin: 0 0 16px;
-  color: var(--text-muted);
-  font-size: 0.88rem;
-  line-height: 1.5;
 }
 
 .toolbar {

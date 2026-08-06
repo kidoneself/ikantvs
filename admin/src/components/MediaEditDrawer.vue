@@ -38,7 +38,6 @@ const form = reactive<MediaUpdateBody>({
   pubStatus: 1,
   hot: 0,
   tier: 0,
-  searchHidden: 0,
 })
 
 const pubOptions = [
@@ -63,7 +62,6 @@ function applyMedia(m: AdminMedia | null | undefined) {
   form.pubStatus = m.pubStatus ?? 1
   form.hot = m.hot ?? 0
   form.tier = m.tier ?? 0
-  form.searchHidden = m.searchHidden ?? 0
 }
 
 async function loadDetail(id: number) {
@@ -161,16 +159,6 @@ function seasonLabel(s: SeasonVO) {
           <el-select v-model="form.pubStatus" style="width: 100%">
             <el-option v-for="o in pubOptions" :key="o.value" :label="o.label" :value="o.value" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="前台">
-          <el-switch
-            v-model="form.searchHidden"
-            :active-value="1"
-            :inactive-value="0"
-            active-text="隐藏"
-            inactive-text="展示"
-          />
-          <p class="field-hint">隐藏后前台全不可见（搜索、分类、首页、详情）。后台仍可编辑；永久下架请改「发布」。</p>
         </el-form-item>
         <el-form-item label="热度">
           <el-input-number v-model="form.hot" :min="0" controls-position="right" />
@@ -301,12 +289,5 @@ function seasonLabel(s: SeasonVO) {
   height: 52px;
   object-fit: cover;
   border-radius: 4px;
-}
-
-.field-hint {
-  margin: 6px 0 0;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  line-height: 1.5;
 }
 </style>

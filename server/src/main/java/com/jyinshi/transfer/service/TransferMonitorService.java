@@ -45,8 +45,6 @@ public class TransferMonitorService {
     private final ObjectMapper objectMapper;
     private final com.jyinshi.transfer.notify.NotifyPort notify;
     private final org.springframework.context.ApplicationEventPublisher events;
-    private final NasFillService nasFillService;
-    private final NasLandingService nasLandingService;
 
     public TransferMonitorService(TransferMonitorMapper monitorMapper,
                                   TransferJobService jobService,
@@ -54,9 +52,7 @@ public class TransferMonitorService {
                                   TransferProperties props,
                                   ObjectMapper objectMapper,
                                   com.jyinshi.transfer.notify.NotifyPort notify,
-                                  org.springframework.context.ApplicationEventPublisher events,
-                                  NasFillService nasFillService,
-                                  NasLandingService nasLandingService) {
+                                  org.springframework.context.ApplicationEventPublisher events) {
         this.monitorMapper = monitorMapper;
         this.jobService = jobService;
         this.accountService = accountService;
@@ -64,8 +60,6 @@ public class TransferMonitorService {
         this.objectMapper = objectMapper;
         this.notify = notify;
         this.events = events;
-        this.nasFillService = nasFillService;
-        this.nasLandingService = nasLandingService;
     }
 
     // ==================== 启用 / 查询 / 手动补扫 ====================
@@ -86,7 +80,7 @@ public class TransferMonitorService {
     }
 
     /**
-     * @param mediaId 所属剧 id；迅雷上游启用时用于复用 nas_landing 落地夹
+     * @param mediaId 所属剧 id（保留入参兼容调用方；当前不再绑定落地夹）
      */
     public TransferMonitor enable(Long mediaLinkId, String panType, String shareUrl, String sharePwd,
                                   String accountNameIgnored, Long mediaId) {
@@ -128,23 +122,6 @@ public class TransferMonitorService {
         }
         m.setEnabled(true);
         m.setStatus("active");
-
-        // 迅雷上游：若该剧已有 NAS 落地夹，直接绑上，禁止再 create 新夹
-        if ("xunlei".equals(pan) && mediaId != null) {
-            var landing = nasLandingService.findByMediaId(mediaId);
-            if (landing != null && StringUtils.hasText(landing.getXunleiFolderId())) {
-                m.setTargetFolderId(landing.getXunleiFolderId());
-                if (StringUtils.hasText(landing.getXunleiShareUrl())) {
-                    m.setMyShareUrl(landing.getXunleiShareUrl());
-                }
-                // 尚无探测基线时置 0，促使首次 check 走 update 把上游灌进该夹
-                if (m.getLastFileCount() == null) {
-                    m.setLastFileCount(0);
-                }
-                log.info("[监控转存] 迅雷复用 NAS 落地夹 mediaId={} folder={}",
-                        mediaId, landing.getXunleiFolderId());
-            }
-        }
 
         if (isNew) {
             m.setFailCount(0);
@@ -463,12 +440,6 @@ public class TransferMonitorService {
                 }
                 log.info("[监控转存] 创建完成，固定夹={}, 账号={}, 我方链={}, 最新={}",
                         job.getResultFolderId(), m.getAccountName(), job.getResultShareUrl(), latest);
-                if ("baidu".equalsIgnoreCase(m.getPanType())) {
-                    nasFillService.afterBaiduDone(m);
-                } else if ("xunlei".equalsIgnoreCase(m.getPanType())) {
-                    // 换源/首转进夹后重算差集，自动取消过时千云整包
-                    nasFillService.afterXunleiSynced(m);
-                }
             }
             case "update" -> {
                 String latest = readString(job.getResultJson(), "latestFileName");
@@ -482,12 +453,6 @@ public class TransferMonitorService {
                 if (StringUtils.hasText(m.getMyShareUrl())) {
                     events.publishEvent(new com.jyinshi.transfer.event.AnchorLinkReadyEvent(
                             m.getMediaLinkId(), m.getMyShareUrl()));
-                }
-                if ("baidu".equalsIgnoreCase(m.getPanType())) {
-                    // 即便集数文案没变，也可能有新文件进夹；按夹内容差集决定是否入队
-                    nasFillService.afterBaiduDone(m);
-                } else if ("xunlei".equalsIgnoreCase(m.getPanType())) {
-                    nasFillService.afterXunleiSynced(m);
                 }
             }
             default -> { /* 无关任务 */ }

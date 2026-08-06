@@ -355,55 +355,6 @@ public class BaiduDriver implements PanDriver {
         return out;
     }
 
-    /**
-     * NAS 灌盘：递归列出固定夹内文件，带 fs_id（千云 dlink 下载用）与相对路径。
-     *
-     * @return null=夹不可列；空列表=无文件
-     */
-    public List<com.jyinshi.transfer.dto.NasFileEntry> walkFolderForNas(Account account, String folderPath) {
-        List<com.jyinshi.transfer.dto.NasFileEntry> out = new ArrayList<>();
-        if (!walkFolderForNasRecurse(account, folderPath, "", out, 0)) {
-            return null;
-        }
-        return out;
-    }
-
-    private boolean walkFolderForNasRecurse(Account account, String folderPath, String relDir,
-                                            List<com.jyinshi.transfer.dto.NasFileEntry> out, int depth) {
-        if (depth > 6) {
-            log.warn("[百度] NAS walk 超过深度上限 path={}", folderPath);
-            return true;
-        }
-        JSONArray files = listFolderRaw(account, folderPath);
-        if (files == null) {
-            return false;
-        }
-        for (int i = 0; i < files.size(); i++) {
-            JSONObject f = files.getJSONObject(i);
-            String name = f.getStr("server_filename", "");
-            if (name.isBlank()) {
-                continue;
-            }
-            boolean dir = f.getInt("isdir", 0) == 1;
-            String path = f.getStr("path");
-            if (dir) {
-                String childRel = relDir.isBlank() ? name : relDir + "/" + name;
-                if (!walkFolderForNasRecurse(account, path, childRel, out, depth + 1)) {
-                    return false;
-                }
-            } else {
-                long fsId = f.getLong("fs_id", 0L);
-                if (fsId <= 0) {
-                    continue;
-                }
-                out.add(new com.jyinshi.transfer.dto.NasFileEntry(
-                        String.valueOf(fsId), name, f.getLong("size", 0L),
-                        relDir == null ? "" : relDir));
-            }
-        }
-        return true;
-    }
-
     /** 列目录原始 JSON；失败返回 null。 */
     private JSONArray listFolderRaw(Account account, String folderId) {
         String cookie = account.getCookie();

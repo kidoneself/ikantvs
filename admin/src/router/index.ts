@@ -3,12 +3,6 @@ import { useAuthStore } from '@/store/auth'
 import { canAccessRoute } from '@/utils/permission'
 import { canAccessAdmin } from '@/config/roles'
 
-const soon = (title: string, desc: string) => ({
-  title,
-  soonTitle: title,
-  soonDesc: desc,
-})
-
 const routes: RouteRecordRaw[] = [
   {
     path: '/login',
@@ -35,24 +29,6 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '影视库' },
       },
       {
-        path: 'content/hidden',
-        name: 'media-hidden',
-        component: () => import('@/views/content/MediaHiddenList.vue'),
-        meta: { title: '隐藏列表' },
-      },
-      {
-        path: 'content/links',
-        name: 'links',
-        component: () => import('@/views/content/LinkList.vue'),
-        meta: { title: '链接管理' },
-      },
-      {
-        path: 'content/ranking',
-        name: 'ranking',
-        component: () => import('@/views/content/RankingList.vue'),
-        meta: { title: '榜单' },
-      },
-      {
         path: 'content/daily',
         name: 'daily',
         component: () => import('@/views/content/DailyList.vue'),
@@ -65,22 +41,26 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '数据洞察' },
       },
       {
-        path: 'ops/review',
-        name: 'review',
-        component: () => import('@/views/ComingSoon.vue'),
-        meta: soon('审核台', '搜索来源链接审核、投稿/求片处理'),
-      },
-      {
         path: 'ops/sensitive',
         name: 'sensitive',
         component: () => import('@/views/ops/Sensitive.vue'),
         meta: { title: '敏感词' },
       },
       {
+        path: 'ops/transfer-jobs',
+        name: 'transfer-jobs',
+        component: () => import('@/views/ops/TransferJobs.vue'),
+        meta: { title: '转存记录' },
+      },
+      {
+        path: 'ops/transfer-accounts',
+        name: 'transfer-accounts',
+        component: () => import('@/views/ops/TransferAccounts.vue'),
+        meta: { title: '网盘配置' },
+      },
+      {
         path: 'ops/transfer',
-        name: 'transfer',
-        component: () => import('@/views/ops/Transfer.vue'),
-        meta: { title: '转存' },
+        redirect: '/ops/transfer-jobs',
       },
       {
         path: 'ops/doc-monitor',
