@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { UploadRequestOptions } from 'element-plus'
+import { uploadAdminImage } from '@/api/config'
 import {
   fetchDetail,
   isSeriesType,
   listPosterUrl,
-  refreshMedia,
   seriesSummary,
   updateMedia,
   type AdminMedia,
@@ -25,7 +26,7 @@ const emit = defineEmits<{
 
 const loading = ref(false)
 const saving = ref(false)
-const refreshing = ref(false)
+const uploadingPoster = ref(false)
 const detail = ref<AdminMedia | null>(null)
 const seasons = ref<SeasonVO[]>([])
 
@@ -38,7 +39,6 @@ const form = reactive<MediaUpdateBody>({
   hot: 0,
   tier: 0,
   searchHidden: 0,
-  tmdbId: undefined as number | undefined,
 })
 
 const pubOptions = [
@@ -64,7 +64,6 @@ function applyMedia(m: AdminMedia | null | undefined) {
   form.hot = m.hot ?? 0
   form.tier = m.tier ?? 0
   form.searchHidden = m.searchHidden ?? 0
-  form.tmdbId = m.tmdbId
 }
 
 async function loadDetail(id: number) {
@@ -97,6 +96,18 @@ function close() {
   emit('update:visible', false)
 }
 
+async function onUploadPoster(opt: UploadRequestOptions) {
+  uploadingPoster.value = true
+  try {
+    form.poster = await uploadAdminImage(opt.file as File, 'poster')
+    ElMessage.success('海报已上传')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '上传失败')
+  } finally {
+    uploadingPoster.value = false
+  }
+}
+
 async function save() {
   if (!props.mediaId || !form.title?.trim()) {
     ElMessage.warning('标题不能为空')
@@ -119,25 +130,6 @@ async function save() {
   }
 }
 
-async function doRefresh() {
-  if (!props.mediaId) return
-  refreshing.value = true
-  try {
-    await refreshMedia(props.mediaId)
-    const res = await fetchDetail(props.mediaId)
-    applyMedia(res.media)
-    seasons.value = res.seasons ?? []
-    const extra = isSeriesType(res.media?.type)
-      ? `，${seriesSummary(res.media) || '季未同步'}`
-      : ''
-    ElMessage.success(`已重采${extra}`)
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '重采失败')
-  } finally {
-    refreshing.value = false
-  }
-}
-
 function seasonLabel(s: SeasonVO) {
   return s.name ? `第 ${s.seasonNumber} 季 · ${s.name}` : `第 ${s.seasonNumber} 季`
 }
@@ -154,7 +146,7 @@ function seasonLabel(s: SeasonVO) {
     <div v-loading="loading" class="body">
       <div v-if="detail" class="meta-bar">
         <el-tag size="small">{{ detail.type }}</el-tag>
-        <span v-if="detail.tmdbId" class="muted">TMDB {{ detail.tmdbId }}</span>
+        <span v-if="detail.metaSource" class="muted">来源 {{ detail.metaSource }}</span>
         <span v-if="isSeriesType(detail.type)" class="muted">{{ seriesSummary(detail) }}</span>
       </div>
 
@@ -164,16 +156,6 @@ function seasonLabel(s: SeasonVO) {
         </el-form-item>
         <el-form-item label="年份">
           <el-input-number v-model="form.year" :min="1900" :max="2100" controls-position="right" />
-        </el-form-item>
-        <el-divider content-position="left">外部 ID</el-divider>
-        <el-form-item label="TMDB ID">
-          <el-input-number
-            v-model="form.tmdbId"
-            :min="1"
-            controls-position="right"
-            placeholder="手动补挂"
-            style="width: 100%"
-          />
         </el-form-item>
         <el-form-item label="发布">
           <el-select v-model="form.pubStatus" style="width: 100%">
@@ -200,19 +182,25 @@ function seasonLabel(s: SeasonVO) {
         </el-form-item>
 
         <el-divider content-position="left">海报</el-divider>
-        <el-form-item label="海报 URL">
-          <el-input v-model="form.poster" type="textarea" :rows="2" placeholder="https://..." />
+        <el-form-item label="海报">
+          <div class="poster-row">
+            <el-upload
+              :show-file-list="false"
+              accept="image/*"
+              :http-request="onUploadPoster"
+              :disabled="uploadingPoster"
+            >
+              <el-button :loading="uploadingPoster">本地上传</el-button>
+            </el-upload>
+            <el-input v-model="form.poster" type="textarea" :rows="2" placeholder="或粘贴 URL" />
+          </div>
         </el-form-item>
-        <div v-if="detail" class="img-row">
-          <div v-if="listPosterUrl(detail)" class="img-box">
-            <span class="img-label">列表缩略图</span>
-            <img :src="listPosterUrl(detail)" alt="" />
+        <div v-if="detail || form.poster" class="img-row">
+          <div v-if="form.poster || listPosterUrl(detail || {})" class="img-box">
+            <span class="img-label">预览</span>
+            <img :src="form.poster || listPosterUrl(detail!)" alt="" />
           </div>
-          <div v-if="detail.poster" class="img-box">
-            <span class="img-label">详情海报</span>
-            <img :src="detail.poster" alt="" />
-          </div>
-          <div v-if="detail.backdrop" class="img-box wide">
+          <div v-if="detail?.backdrop" class="img-box wide">
             <span class="img-label">背景图</span>
             <img :src="detail.backdrop" alt="" />
           </div>
@@ -223,12 +211,9 @@ function seasonLabel(s: SeasonVO) {
         </el-form-item>
       </el-form>
 
-      <template v-if="detail && isSeriesType(detail.type)">
-        <el-divider content-position="left">
-          季列表
-          <span class="muted inline">（TMDB 同步，只读）</span>
-        </el-divider>
-        <el-table v-if="seasons.length" :data="seasons" size="small" stripe class="season-table">
+      <template v-if="detail && isSeriesType(detail.type) && seasons.length">
+        <el-divider content-position="left">季列表</el-divider>
+        <el-table :data="seasons" size="small" stripe class="season-table">
           <el-table-column label="季" width="48" prop="seasonNumber" />
           <el-table-column label="海报" width="52">
             <template #default="{ row }">
@@ -242,13 +227,9 @@ function seasonLabel(s: SeasonVO) {
           <el-table-column label="集数" width="56" prop="episodeCount" />
           <el-table-column label="首播" width="88" prop="airDate" />
         </el-table>
-        <p v-else class="muted empty-seasons">
-          {{ detail.seasonCount === 0 ? 'TMDB 无季拆分' : '暂无季数据，可点「重采元数据」' }}
-        </p>
       </template>
     </div>
     <template #footer>
-      <el-button :loading="refreshing" @click="doRefresh">重采元数据</el-button>
       <el-button @click="close">取消</el-button>
       <el-button type="primary" :loading="saving" @click="save">保存</el-button>
     </template>
@@ -271,10 +252,13 @@ function seasonLabel(s: SeasonVO) {
 .muted {
   color: var(--text-muted);
   font-size: 0.82rem;
+}
 
-  &.inline {
-    font-weight: normal;
-  }
+.poster-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
 }
 
 .img-row {
@@ -319,19 +303,10 @@ function seasonLabel(s: SeasonVO) {
   border-radius: 4px;
 }
 
-.empty-seasons {
-  margin: 0 0 12px;
-  padding: 8px 0;
-}
-
 .field-hint {
   margin: 6px 0 0;
   font-size: 0.78rem;
   color: var(--text-muted);
   line-height: 1.5;
-
-  &.id-hint {
-    margin: -8px 0 16px 88px;
-  }
 }
 </style>

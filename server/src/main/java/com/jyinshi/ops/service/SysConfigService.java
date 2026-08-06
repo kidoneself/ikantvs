@@ -36,14 +36,6 @@ public class SysConfigService {
     /** 迅雷推广达人数字账号（SDK extra.custom，结算必填）。 */
     public static final String XUNLEI_PARTNER_CUSTOM = "xunlei.partner.custom";
 
-    // 元数据采集（TMDB）——运行时可在后台修改；国内部署把 base-url 指向反代即可。
-    public static final String META_TMDB_API_KEY = "metadata.tmdb.api-key";
-    public static final String META_TMDB_BASE_URL = "metadata.tmdb.base-url";
-    public static final String META_TMDB_IMAGE_BASE = "metadata.tmdb.image-base";
-    public static final String META_TMDB_BACKDROP_BASE = "metadata.tmdb.backdrop-base";
-    public static final String META_TMDB_LANGUAGE = "metadata.tmdb.language";
-    public static final String META_TMDB_TIMEOUT_MS = "metadata.tmdb.timeout-ms";
-
     // 转存·迅雷开放平台应用级配置（所有迅雷账号共用一个 app），后台可改。
     public static final String TRANSFER_XUNLEI_CLIENT_ID = "transfer.xunlei.client-id";
     public static final String TRANSFER_XUNLEI_CLIENT_SECRET = "transfer.xunlei.client-secret";
@@ -75,7 +67,6 @@ public class SysConfigService {
     /** 微信机器人机机调用（「今日」拉取 / 后续 propose）共用 token。 */
     public static final String NOTIFY_WECHAT_TOKEN = "notify.wechat.token";
 
-    private static final String GROUP_TMDB = "TMDB 采集";
     private static final String GROUP_XUNLEI = "迅雷转存";
     private static final String GROUP_NAS = "NAS灌盘";
     private static final String GROUP_INGEST = "资源采集";
@@ -141,25 +132,6 @@ public class SysConfigService {
         }
 
         // 默认值取 application.yml / 环境变量（首次启动播种），之后以库为准、后台可改。
-        schema.add(new ConfigDef(META_TMDB_API_KEY, "TMDB API Key", GROUP_TMDB, TYPE_SECRET,
-                null, "TMDB v3 API Key，必填才能采集元数据",
-                seed("jyinshi.metadata.tmdb.api-key", "")));
-        schema.add(new ConfigDef(META_TMDB_BASE_URL, "TMDB 接口地址", GROUP_TMDB, TYPE_TEXT,
-                null, "TMDB v3 接口基址；国内部署改成你的反代地址（如 https://反代域名/tmdb/3）",
-                seed("jyinshi.metadata.tmdb.base-url", "https://api.themoviedb.org/3")));
-        schema.add(new ConfigDef(META_TMDB_IMAGE_BASE, "海报图基址", GROUP_TMDB, TYPE_TEXT,
-                null, "海报图前缀；国内部署可指向反代的图片路径",
-                seed("jyinshi.metadata.tmdb.image-base", "https://image.tmdb.org/t/p/w500")));
-        schema.add(new ConfigDef(META_TMDB_BACKDROP_BASE, "剧照图基址", GROUP_TMDB, TYPE_TEXT,
-                null, "剧照/背景图前缀；国内部署可指向反代的图片路径",
-                seed("jyinshi.metadata.tmdb.backdrop-base", "https://image.tmdb.org/t/p/w780")));
-        schema.add(new ConfigDef(META_TMDB_LANGUAGE, "采集语言", GROUP_TMDB, TYPE_TEXT,
-                null, "TMDB language 参数，如 zh-CN",
-                seed("jyinshi.metadata.tmdb.language", "zh-CN")));
-        schema.add(new ConfigDef(META_TMDB_TIMEOUT_MS, "超时(毫秒)", GROUP_TMDB, TYPE_NUMBER,
-                null, "TMDB 请求超时（毫秒）",
-                seed("jyinshi.metadata.tmdb.timeout-ms", "8000")));
-
         schema.add(new ConfigDef(TRANSFER_XUNLEI_CLIENT_ID, "迅雷 client_id", GROUP_XUNLEI, TYPE_SECRET,
                 null, "迅雷开放平台 client_id（转存/追更迅雷账号必填）",
                 seed("jyinshi.transfer.xunlei.client-id", "")));

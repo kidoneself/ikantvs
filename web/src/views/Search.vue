@@ -1,27 +1,20 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   searchFeed,
-  fetchDiscover,
-  importDiscover,
   type ResourceItem,
   type SortKey,
-  type TmdbDiscoverItem,
 } from '@/api/content'
 import { track } from '@/api/track'
-import { findQuery } from '@/lib/findSearch'
 import { useInfiniteScroll } from '@/composables/useInfiniteScroll'
 import ResourceCard from '@/components/ResourceCard.vue'
-import DiscoverCard from '@/components/DiscoverCard.vue'
 
 defineOptions({ name: 'Search' })
 
 const PAGE_SIZE = 12
 
 const route = useRoute()
-const router = useRouter()
 
 const kw = ref((route.query.q as string) || '')
 const cat = ref((route.query.cat as string) || '全部')
@@ -96,63 +89,6 @@ const loading = ref(true)
 const loadingMore = ref(false)
 const error = ref(false)
 
-const discoverItems = ref<TmdbDiscoverItem[]>([])
-const discoverLoading = ref(false)
-const importingKey = ref<string | null>(null)
-
-function shouldFetchDiscover() {
-  return kw.value.trim().length >= 2
-}
-
-// 站内结果已展示的 id，用来给下方 TMDB 补充去重。
-const shownIds = computed(() => new Set(results.value.map((r) => r.id)))
-
-// 站内有结果时，补充 TMDB 里「上方没出现过」的相关条目：
-// 未入库的（点击添加）+ 在库但因别名/译名不同没被站内搜到的（点击进资源搜索）。
-const discoverExtra = computed(() =>
-  discoverItems.value.filter((it) => !it.localId || !shownIds.value.has(it.localId)),
-)
-
-// 每次新搜索自增，用于丢弃「过期」的 TMDB 发现响应（发现是后台异步补充，
-// 快速改关键词/筛选时旧请求可能后到，不能覆盖新结果）。
-let discoverSeq = 0
-
-async function loadDiscover() {
-  const seq = ++discoverSeq
-  discoverItems.value = []
-  if (!shouldFetchDiscover()) return
-  discoverLoading.value = true
-  try {
-    const items = await fetchDiscover(kw.value, cat.value !== '全部' ? cat.value : undefined)
-    if (seq === discoverSeq) discoverItems.value = items
-  } finally {
-    if (seq === discoverSeq) discoverLoading.value = false
-  }
-}
-
-async function onPickDiscover(item: TmdbDiscoverItem) {
-  const title = item.title || item.originalTitle || ''
-  if (item.localId) {
-    router.push(findQuery(title))
-    return
-  }
-  const key = `${item.tmdbId}-${item.type}`
-  if (importingKey.value === key) return
-  importingKey.value = key
-  try {
-    const m = await importDiscover(item.tmdbId, item.type)
-    if (!m.id) {
-      ElMessage.error('添加失败，请稍后重试')
-      return
-    }
-    router.push(findQuery(m.title || title))
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '添加失败')
-  } finally {
-    importingKey.value = null
-  }
-}
-
 function queryParams(p: number) {
   const y = YEAR_OPTIONS[yearIdx.value]
   return {
@@ -185,9 +121,6 @@ async function loadFirst() {
   } finally {
     loading.value = false
   }
-  // 站内结果先渲染完，TMDB 发现在后台补：0 命中时整块当发现结果，有命中时只补未入库的版本。
-  // 关键：不要 await，否则慢/挂起的 TMDB 请求会一直卡在骨架屏上（表现为「空白，必须刷新」）。
-  void loadDiscover()
 }
 
 async function loadMore() {
@@ -292,48 +225,11 @@ watch(
         <ResourceCard v-for="(it, i) in results" :key="it.id" :item="it" :rank="i + 1" source="search" />
       </div>
 
-      <template v-else>
-        <section v-if="discoverItems.length" class="discover">
-          <div class="discover-head">
-            <h2>TMDB 发现</h2>
-            <p>站内暂无「{{ kw }}」，以下为 TMDB 匹配结果（最多 8 条），点击卡片添加</p>
-          </div>
-          <div class="card-grid">
-            <DiscoverCard
-              v-for="item in discoverItems"
-              :key="`${item.tmdbId}-${item.type}`"
-              :item="item"
-              :loading="importingKey === `${item.tmdbId}-${item.type}`"
-              @pick="onPickDiscover(item)"
-            />
-          </div>
-        </section>
-        <div v-else-if="discoverLoading" class="state">
-          <p>正在查找 TMDB…</p>
-        </div>
-        <el-empty v-else description="没有匹配的信息流，换个关键词或筛选条件试试" />
-      </template>
+      <el-empty v-else description="没有匹配的信息流，换个关键词或筛选条件试试" />
 
       <div v-if="hasMore" ref="sentinel" class="infinite-sentinel">
         <span v-if="loadingMore">加载中…</span>
       </div>
-
-      <!-- 站内有结果时，把 TMDB 里上方没出现过的相关条目补在底部 -->
-      <section v-if="results.length && discoverExtra.length" class="discover more-discover">
-        <div class="discover-head">
-          <h2>更多相关</h2>
-          <p>以下为 TMDB 匹配到的其它版本，点击卡片查看或添加</p>
-        </div>
-        <div class="card-grid">
-          <DiscoverCard
-            v-for="item in discoverExtra"
-            :key="`${item.tmdbId}-${item.type}`"
-            :item="item"
-            :loading="importingKey === `${item.tmdbId}-${item.type}`"
-            @pick="onPickDiscover(item)"
-          />
-        </div>
-      </section>
     </template>
   </div>
 </template>
@@ -410,28 +306,6 @@ watch(
       color: var(--brand-strong);
       font-weight: 600;
     }
-  }
-}
-
-.discover {
-  margin-top: 4px;
-}
-.more-discover {
-  margin-top: 28px;
-  padding-top: 22px;
-  border-top: 1px solid var(--border);
-}
-.discover-head {
-  margin-bottom: 14px;
-  h2 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 800;
-  }
-  p {
-    margin: 6px 0 0;
-    font-size: 13px;
-    color: var(--text-muted);
   }
 }
 

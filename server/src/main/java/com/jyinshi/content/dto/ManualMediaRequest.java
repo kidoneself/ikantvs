@@ -4,8 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
- * 仅录入：无外部源时，人工录入条目（meta_source=none）。
- * 可带海报 URL；后面有了 TMDB id 可再补抓。
+ * 手工录入条目（meta_source=manual）。可带海报 URL（建议先本地上传）。
  */
 @Data
 public class ManualMediaRequest {

@@ -33,9 +33,7 @@ const syncSubmitting = ref(false)
 let syncTimer: number | undefined
 
 const syncTasks: { key: SyncTask; label: string; hint: string }[] = [
-  { key: 'discover', label: '拉新片/热播', hint: '从 TMDB 拉趋势 + 新剧 + 新片入库' },
-  { key: 'refresh', label: '刷新连载', hint: '重拉连载剧最新集数/评分/海报' },
-  { key: 'rankings', label: '重建榜单', hint: '正在热播 / 最新上映 / 高分推荐' },
+  { key: 'rankings', label: '重建榜单', hint: '正在热播 / 最新上映 / 高分推荐（按库内条目）' },
 ]
 
 const syncPercent = computed(() => {
@@ -101,9 +99,9 @@ const searchesPerVisitor = computed(() => {
   return (o.searches.current / o.visitors.current).toFixed(1)
 })
 
-/** 把求片词带到 TMDB 补录页，方便一键去补。 */
+/** 把求片词带到手工录入页。 */
 function gotoImport(keyword: string) {
-  router.push({ path: '/content/media', query: { tab: 'import', q: keyword } })
+  router.push({ path: '/content/media', query: { tab: 'manual', q: keyword } })
 }
 
 onMounted(async () => {
@@ -221,7 +219,7 @@ onUnmounted(stopPolling)
             <div class="sync-head">
               <div>
                 <span class="t">内容同步</span>
-                <span class="sub">定时之外，随时手动拉新 / 刷新连载 / 重建榜单</span>
+                <span class="sub">片库靠夸克热榜；此处可手动重建自动榜单</span>
               </div>
               <el-tag v-if="sync?.running" type="warning" effect="light" round>
                 {{ sync.taskLabel }} 执行中
@@ -376,10 +374,10 @@ onUnmounted(stopPolling)
               <button
                 class="quick"
                 type="button"
-                @click="router.push({ path: '/content/media', query: { tab: 'import' } })"
+                @click="router.push({ path: '/content/media', query: { tab: 'manual' } })"
               >
-                <el-icon><Search /></el-icon>
-                <span>采集入库</span>
+                <el-icon><EditPen /></el-icon>
+                <span>手工录入</span>
               </button>
               <button class="quick" type="button" @click="router.push('/analytics')">
                 <el-icon><DataLine /></el-icon>

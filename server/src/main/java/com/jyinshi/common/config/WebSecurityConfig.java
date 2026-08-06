@@ -69,8 +69,6 @@ public class WebSecurityConfig {
                                 "/api/rankings", "/api/rankings/**",
                                 "/api/search", "/api/search/**",
                                 "/api/daily").permitAll()
-                        // 公开写：前台 TMDB 发现点击入库（匿名可用，控制器内按 IP 限频）
-                        .requestMatchers(HttpMethod.POST, "/api/media/discover/import").permitAll()
                         // 公开写：前台行为埋点（匿名上报）
                         .requestMatchers(HttpMethod.POST, "/api/events").permitAll()
                         // 公开读：前台「大家在搜」热搜榜

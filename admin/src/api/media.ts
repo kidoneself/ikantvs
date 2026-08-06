@@ -66,13 +66,13 @@ export interface MediaUpdateBody {
   tmdbId?: number | null
 }
 
-export interface TmdbCandidate {
-  tmdbId?: number
-  title?: string
-  year?: number
+export interface ManualMediaBody {
+  title: string
   type?: string
+  year?: number
   poster?: string
-  rating?: number
+  overview?: string
+  publish?: boolean
 }
 
 interface ApiPage<T> {
@@ -80,13 +80,6 @@ interface ApiPage<T> {
   page: number
   size: number
   records: T[]
-}
-
-export interface ImportBody {
-  url?: string
-  tmdbId?: number
-  type?: string
-  publish?: boolean
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -114,7 +107,7 @@ export function listPosterUrl(m: Pick<AdminMedia, 'poster' | 'posterThumb'>) {
 /** 剧集季数/连载摘要。 */
 export function seriesSummary(m: AdminMedia): string {
   if (!isSeriesType(m.type)) return ''
-  if (m.seasonCount == null) return '季未同步'
+  if (m.seasonCount == null) return ''
   if (m.seasonCount === 0) return '无季拆分'
   const parts: string[] = [`${m.seasonCount} 季`]
   if (m.episodeCount) parts.push(`全 ${m.episodeCount} 集`)
@@ -142,16 +135,8 @@ export function updateMedia(id: number, body: MediaUpdateBody) {
   return http.put<AdminMedia>(`/admin/media/${id}`, body)
 }
 
-export function importMedia(body: ImportBody) {
-  return http.post<AdminMedia>('/admin/media/import', body)
-}
-
-export function refreshMedia(id: number) {
-  return http.post<AdminMedia>(`/admin/media/${id}/refresh`, {})
-}
-
-export function tmdbSearch(q: string) {
-  return http.get<TmdbCandidate[]>(`/admin/media/tmdb-search?q=${encodeURIComponent(q)}`)
+export function createManualMedia(body: ManualMediaBody) {
+  return http.post<AdminMedia>('/admin/media/manual', body)
 }
 
 export function storageStatus() {

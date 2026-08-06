@@ -6,12 +6,9 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jyinshi.common.api.PageResult;
 import com.jyinshi.common.exception.BizException;
-import com.jyinshi.content.client.FetchedMetadata;
-import com.jyinshi.content.client.TmdbClient;
 import com.jyinshi.content.dto.AdminDashboardVO;
 import com.jyinshi.content.dto.ManualMediaRequest;
 import com.jyinshi.content.dto.MediaDetailVO;
-import com.jyinshi.content.dto.MediaImportRequest;
 import com.jyinshi.content.dto.MediaUpdateRequest;
 import com.jyinshi.content.dto.MediaVO;
 import com.jyinshi.content.entity.Media;
@@ -24,7 +21,6 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,69 +28,28 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 内容域：媒体信息采集与查询。
+ * 内容域：影视库查询与手工录入。
  *
- * <p>开源默认：夸克热榜灌库；可选 TMDB 采集；手工录入（none）。豆瓣采集已移除。
- * 链接不在这里，单独走 media_link。
+ * <p>开源默认元数据来自夸克热榜；后台可手工建条目并上传海报。无 TMDB/豆瓣采集。
  */
 @Slf4j
 @Service
 public class MediaService {
 
     private final MediaMapper mediaMapper;
-    private final TmdbClient tmdbClient;
     private final PosterMirrorService posterMirrorService;
     private final SensitiveWordService sensitiveWordService;
     private final MediaSeasonService mediaSeasonService;
     private final MediaSearchCacheService searchCacheService;
 
     public MediaService(MediaMapper mediaMapper,
-                        TmdbClient tmdbClient,
                         PosterMirrorService posterMirrorService, SensitiveWordService sensitiveWordService,
                         MediaSeasonService mediaSeasonService, MediaSearchCacheService searchCacheService) {
         this.mediaMapper = mediaMapper;
-        this.tmdbClient = tmdbClient;
         this.posterMirrorService = posterMirrorService;
         this.sensitiveWordService = sensitiveWordService;
         this.mediaSeasonService = mediaSeasonService;
         this.searchCacheService = searchCacheService;
-    }
-
-    /**
-     * 单条采集：TMDB 链接或 ID（豆瓣已下线）。
-     */
-    @Transactional
-    public MediaVO importByExternalId(MediaImportRequest req) {
-        Integer tmdbId = req.getTmdbId();
-        String type = req.getType();
-
-        if (StringUtils.hasText(req.getUrl())) {
-            String url = req.getUrl().trim();
-            if (url.contains("douban.com")) {
-                throw new BizException("豆瓣采集已下线，请用 TMDB 链接/ID，或手工录入并上传海报");
-            }
-            String[] tmdbRef = TmdbClient.parseRef(url);
-            if (tmdbRef != null) {
-                type = tmdbRef[0];
-                tmdbId = Integer.valueOf(tmdbRef[1]);
-            } else {
-                throw new BizException("无法识别的链接，请用 TMDB 详情页链接");
-            }
-        }
-
-        if (tmdbId == null) {
-            throw new BizException("请提供 TMDB 链接或 id");
-        }
-        if (!tmdbClient.isConfigured()) {
-            throw new BizException("TMDB 未配置 api-key，无法采集");
-        }
-        FetchedMetadata meta = tmdbClient.fetchById(tmdbId, type);
-        if (meta == null) {
-            throw new BizException("TMDB 未找到该条目（id=" + tmdbId + "）");
-        }
-
-        Media saved = upsert(meta, Boolean.TRUE.equals(req.getPublish()));
-        return MediaVO.from(saved);
     }
 
     /** 仅录入：都没有外部数据时，人工建「仅标题」条目。 */
@@ -107,7 +62,7 @@ public class MediaService {
         m.setPoster(req.getPoster());
         m.setOverview(req.getOverview());
         m.setGenres(req.getGenres());
-        m.setMetaSource("none");
+        m.setMetaSource("manual");
         m.setHot(0);
         m.setHotSeed(0);
         m.setTier(0);
@@ -122,31 +77,6 @@ public class MediaService {
         return MediaVO.from(m);
     }
 
-    /** 重新抓取（刷新元数据），按已存的 tmdbId 重拉。 */
-    @Transactional
-    public MediaVO refresh(Long id) {
-        Media existing = mediaMapper.selectById(id);
-        if (existing == null) {
-            throw new BizException("内容不存在");
-        }
-        if ("douban".equalsIgnoreCase(existing.getMetaSource())) {
-            throw new BizException("豆瓣采集已下线，请改用 TMDB 重采或手工改海报");
-        }
-        if (existing.getTmdbId() == null) {
-            throw new BizException("该内容无 TMDB id，无法刷新");
-        }
-        FetchedMetadata meta = tmdbClient.fetchById(existing.getTmdbId(), existing.getType());
-        if (meta == null) {
-            throw new BizException("重新抓取失败（源不可用）");
-        }
-        applyMeta(existing, meta);
-        syncSeasonsIfPresent(existing.getId(), meta);
-        existing.setUpdatedAt(LocalDateTime.now());
-        mediaMapper.updateById(existing);
-        posterMirrorService.mirrorMediaImages(existing);
-        bumpSearchCache();
-        return MediaVO.from(existing);
-    }
 
     /** 后台详情：media + 季列表（链接仍挂整部剧，不按季拆）。含未发布/敏感内容。 */
     public MediaDetailVO getDetail(Long id) {
@@ -384,7 +314,6 @@ public class MediaService {
             m.setSearchHidden(req.getSearchHidden() != 0 ? 1 : 0);
         }
         if (req.getTmdbId() != null) {
-            assertExternalIdAvailable(m.getId(), m.getType(), req.getTmdbId());
             m.setTmdbId(req.getTmdbId());
         }
         m.setUpdatedAt(LocalDateTime.now());
@@ -399,28 +328,7 @@ public class MediaService {
 
     // ---------------- 内容自动同步支撑（content 域内部复用） ----------------
 
-    /** 是否已存在该 TMDB 条目（定时拉新去重用）。 */
-    public boolean existsByTmdb(int tmdbId, String type) {
-        return mediaMapper.selectCount(Wrappers.<Media>lambdaQuery()
-                .eq(Media::getTmdbId, tmdbId)
-                .eq(StringUtils.hasText(type), Media::getType, type)) > 0;
-    }
 
-    /**
-     * 取「连载中」剧集 id，供定时刷新集数：最久未更新的优先，
-     * 跳过近 {@code minIntervalHours} 小时内刚刷过的，避免重复打 TMDB。
-     */
-    public List<Long> listAiringForRefresh(int limit, int minIntervalHours) {
-        int cap = Math.max(1, Math.min(500, limit));
-        LocalDateTime staleBefore = LocalDateTime.now().minusHours(Math.max(0, minIntervalHours));
-        return mediaMapper.selectList(Wrappers.<Media>lambdaQuery()
-                        .eq(Media::getInProduction, true)
-                        .in(Media::getType, List.of("tv", "anime", "variety"))
-                        .and(q -> q.isNull(Media::getUpdatedAt).or().lt(Media::getUpdatedAt, staleBefore))
-                        .orderByAsc(Media::getUpdatedAt)
-                        .last("limit " + cap))
-                .stream().map(Media::getId).toList();
-    }
 
     /**
      * 自动榜单取数：返回符合口径的已发布、前台可见 media id。
@@ -489,58 +397,6 @@ public class MediaService {
                 .build();
     }
 
-    // ---------------- 内部 ----------------
-
-    /** 按外部 id 查已存在则更新元数据，否则新建。 */
-    private Media upsert(FetchedMetadata meta, boolean publish) {
-        boolean allowPublish = publish && passSensitiveGate(meta.getTitle());
-        Media existing = findExisting(meta);
-        if (existing != null) {
-            applyMeta(existing, meta);
-            seedHotIfEmpty(existing, meta);
-            if (allowPublish && (existing.getPubStatus() == null || existing.getPubStatus() == 0)) {
-                existing.setPubStatus(1);
-            }
-            existing.setUpdatedAt(LocalDateTime.now());
-            mediaMapper.updateById(existing);
-            syncSeasonsIfPresent(existing.getId(), meta);
-            posterMirrorService.mirrorMediaImages(existing);
-            bumpSearchCache();
-            return existing;
-        }
-        Media m = new Media();
-        applyMeta(m, meta);
-        seedHotIfEmpty(m, meta);
-        if (m.getHot() == null) {
-            m.setHot(0);
-        }
-        if (m.getHotSeed() == null) {
-            m.setHotSeed(m.getHot());
-        }
-        m.setTier(0);
-        m.setPubStatus(allowPublish ? 1 : 0);
-        m.setCreatedAt(LocalDateTime.now());
-        m.setUpdatedAt(LocalDateTime.now());
-        mediaMapper.insert(m);
-        syncSeasonsIfPresent(m.getId(), meta);
-        posterMirrorService.mirrorMediaImages(m);
-        bumpSearchCache();
-        return m;
-    }
-
-    private void syncSeasonsIfPresent(Long mediaId, FetchedMetadata meta) {
-        if (meta.getSeasons() != null && !meta.getSeasons().isEmpty()) {
-            mediaSeasonService.syncFromFetched(mediaId, meta.getSeasons());
-            posterMirrorService.mirrorSeasonPostersForMedia(mediaId, meta.getSource());
-        }
-    }
-
-    /**
-     * 展示发布门槛：仅当<b>标题</b>命中敏感词(block) → 不予自动发布（留草稿待人工处理）。
-     * 简介命中不拦（口径同前台可见性：简介只打码不隐藏），避免正常影视因剧情简介被卡成草稿。
-     *
-     * @return true 允许发布；false 标题命中 block，应留草稿
-     */
     private boolean passSensitiveGate(String title) {
         if (!StringUtils.hasText(title)) {
             return true;
@@ -550,110 +406,5 @@ public class MediaService {
             return false;
         }
         return true;
-    }
-
-    private Media findExisting(FetchedMetadata meta) {
-        if (meta.getTmdbId() != null) {
-            return mediaMapper.selectOne(Wrappers.<Media>lambdaQuery()
-                    .eq(Media::getTmdbId, meta.getTmdbId())
-                    .eq(Media::getType, meta.getType())
-                    .last("limit 1"));
-        }
-        return null;
-    }
-
-    private void assertExternalIdAvailable(Long mediaId, String type, Integer tmdbId) {
-        if (tmdbId != null && StringUtils.hasText(type)) {
-            Media taken = mediaMapper.selectOne(Wrappers.<Media>lambdaQuery()
-                    .eq(Media::getTmdbId, tmdbId)
-                    .eq(Media::getType, type)
-                    .ne(mediaId != null, Media::getId, mediaId)
-                    .last("LIMIT 1"));
-            if (taken != null) {
-                throw new BizException("TMDB id 已被条目「" + taken.getTitle() + "」(id=" + taken.getId() + ") 占用");
-            }
-        }
-    }
-
-    /** 把抓取结果覆盖到实体（只覆盖非空字段，保留人工已填的）。 */
-    private void applyMeta(Media m, FetchedMetadata meta) {
-        m.setMetaSource(meta.getSource());
-        if (meta.getTmdbId() != null) {
-            m.setTmdbId(meta.getTmdbId());
-        }
-        if (StringUtils.hasText(meta.getType())) {
-            m.setType(meta.getType());
-        }
-        if (StringUtils.hasText(meta.getTitle())) {
-            m.setTitle(meta.getTitle());
-        }
-        if (StringUtils.hasText(meta.getOriginalTitle())) {
-            m.setOriginalTitle(meta.getOriginalTitle());
-        }
-        if (meta.getYear() != null) {
-            m.setYear(meta.getYear());
-        }
-        if (StringUtils.hasText(meta.getPoster()) && !posterMirrorService.isOwnUrl(m.getPoster())) {
-            m.setPoster(meta.getPoster());
-        }
-        if (StringUtils.hasText(meta.getBackdrop()) && !posterMirrorService.isOwnUrl(m.getBackdrop())) {
-            m.setBackdrop(meta.getBackdrop());
-        }
-        if (meta.getRating() != null) {
-            m.setRating(meta.getRating());
-        }
-        if (StringUtils.hasText(meta.getOverview())) {
-            m.setOverview(meta.getOverview());
-        }
-        if (StringUtils.hasText(meta.getGenres())) {
-            m.setGenres(meta.getGenres());
-        }
-        if (StringUtils.hasText(meta.getCountry())) {
-            m.setCountry(meta.getCountry());
-        }
-        if (StringUtils.hasText(meta.getActors())) {
-            m.setActors(meta.getActors());
-        }
-        if (StringUtils.hasText(meta.getDirectors())) {
-            m.setDirectors(meta.getDirectors());
-        }
-        if (StringUtils.hasText(meta.getReleaseDate())) {
-            m.setReleaseDate(meta.getReleaseDate());
-        }
-        if (meta.getEpisodeCount() != null) {
-            m.setEpisodeCount(meta.getEpisodeCount());
-        }
-        if (meta.getSeasonCount() != null) {
-            m.setSeasonCount(meta.getSeasonCount());
-        }
-        if (StringUtils.hasText(meta.getSeriesStatus())) {
-            m.setSeriesStatus(meta.getSeriesStatus());
-        }
-        if (meta.getInProduction() != null) {
-            m.setInProduction(meta.getInProduction());
-        }
-        if (StringUtils.hasText(meta.getLastAirDate())) {
-            m.setLastAirDate(meta.getLastAirDate());
-        }
-        if (meta.getLastSeasonNumber() != null) {
-            m.setLastSeasonNumber(meta.getLastSeasonNumber());
-        }
-        if (meta.getLastEpisodeNumber() != null) {
-            m.setLastEpisodeNumber(meta.getLastEpisodeNumber());
-        }
-        if (m.getTitle() == null) {
-            throw new BizException("抓取结果缺少标题");
-        }
-    }
-
-    /**
-     * 仅当 hot 为空/0 时用 TMDB popularity 做种子。
-     * 这样新片有冷启动热度，而已有热度（如老库搜索回填、后续行为分）刷新时不会被覆盖。
-     */
-    private void seedHotIfEmpty(Media m, FetchedMetadata meta) {
-        if ((m.getHot() == null || m.getHot() == 0) && meta.getPopularity() != null) {
-            m.setHot(meta.getPopularity());
-            m.setHotSeed(meta.getPopularity());
-        }
     }
 }

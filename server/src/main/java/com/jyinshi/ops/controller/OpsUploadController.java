@@ -2,7 +2,6 @@ package com.jyinshi.ops.controller;
 
 import com.jyinshi.common.api.Result;
 import com.jyinshi.common.security.AuthContext;
-import com.jyinshi.identity.enums.UserRole;
 import com.jyinshi.ops.service.OpsUploadService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,7 +30,7 @@ public class OpsUploadController {
     public Result<String> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "scene", defaultValue = "notice") String scene) {
-        AuthContext.requireRole(UserRole.ADMIN);
+        AuthContext.requireStaff();
         return Result.success(uploadService.uploadImage(file, scene));
     }
 }

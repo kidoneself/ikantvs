@@ -50,16 +50,7 @@ jyinshi:
   jwt:
     secret: ${JWT_SECRET:change-me-please-this-is-a-dev-only-secret-key-32bytes+}
     expiration-ms: ${JWT_EXPIRATION_MS:604800000}   # 7 天
-  # 元数据采集（海外机直连 TMDB，无需代理）
-  metadata:
-    tmdb:
-      api-key: ${TMDB_API_KEY:}
-      base-url: ${TMDB_BASE_URL:https://api.themoviedb.org/3}
-      image-base: ${TMDB_IMAGE_BASE:https://image.tmdb.org/t/p/w500}
-      backdrop-base: ${TMDB_BACKDROP_BASE:https://image.tmdb.org/t/p/w780}
-      language: ${TMDB_LANGUAGE:zh-CN}
-      timeout-ms: 8000
-  # Cloudflare R2 海报存储（测试/正式同一套公网 URL）
+  # Cloudflare R2 海报镜像（可选；开源默认可不配，夸克海报/本地上传即可）
   storage:
     r2:
       enabled: ${R2_ENABLED:false}
@@ -73,22 +64,11 @@ jyinshi:
       backfill-batch-size: ${R2_BACKFILL_BATCH:200}
       backfill-concurrency: ${R2_BACKFILL_CONCURRENCY:12}
       download-timeout-ms: 15000
-  # 内容自动同步：定时拉新片/热播、刷新连载剧集数、重建自动榜单
+  # 内容同步：开源仅重建自动榜单（片库靠夸克热榜）
   content:
     sync:
       enabled: ${CONTENT_SYNC_ENABLED:true}
-      publish: ${CONTENT_SYNC_PUBLISH:true}
       run-on-startup: ${CONTENT_SYNC_RUN_ON_STARTUP:true}
-      region: ${CONTENT_SYNC_REGION:}
-      trending-pages: ${CONTENT_SYNC_TRENDING_PAGES:1}
-      tv-pages: ${CONTENT_SYNC_TV_PAGES:1}
-      movie-pages: ${CONTENT_SYNC_MOVIE_PAGES:1}
-      max-imports-per-run: ${CONTENT_SYNC_MAX_IMPORTS:40}
-      refresh-batch-size: ${CONTENT_SYNC_REFRESH_BATCH:60}
-      refresh-min-interval-hours: ${CONTENT_SYNC_REFRESH_MIN_HOURS:12}
-      # cron：拉新每6小时 / 刷新连载每天04:00 / 重建榜单每2小时
-      discover-cron: ${CONTENT_SYNC_DISCOVER_CRON:0 0 */6 * * *}
-      refresh-cron: ${CONTENT_SYNC_REFRESH_CRON:0 0 4 * * *}
       ranking-cron: ${CONTENT_SYNC_RANKING_CRON:0 0 */2 * * *}
     # 夸克影视热榜 → 灌入 media（开源默认；无搜索，仅排行）
     quark-ranking:

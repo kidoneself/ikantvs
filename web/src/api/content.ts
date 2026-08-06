@@ -259,34 +259,3 @@ export async function fetchRankingBoards(): Promise<RankingBoard[]> {
     return []
   }
 }
-
-export interface TmdbDiscoverItem {
-  tmdbId: number
-  type: string
-  title?: string
-  originalTitle?: string
-  year?: number
-  poster?: string
-  rating?: number
-  /** 已在库时直接进资源搜索 */
-  localId?: number
-}
-
-/** 本地 0 命中时的 TMDB 发现（最多 8 条，不入库）。 */
-export async function fetchDiscover(q: string, cat?: string): Promise<TmdbDiscoverItem[]> {
-  const trimmed = q.trim()
-  if (trimmed.length < 2) return []
-  const qs = new URLSearchParams({ q: trimmed })
-  const type = cat ? CAT_TO_TYPE[cat] : undefined
-  if (type) qs.set('type', type)
-  try {
-    return await http.get<TmdbDiscoverItem[]>(`/media/discover?${qs}`)
-  } catch {
-    return []
-  }
-}
-
-/** 点击发现卡片：入库并返回本地 media。 */
-export async function importDiscover(tmdbId: number, type: string): Promise<MediaVO> {
-  return http.post<MediaVO>('/media/discover/import', { tmdbId, type })
-}
