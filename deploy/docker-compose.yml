@@ -1,19 +1,21 @@
-# ikantvs — 宝塔只需这一份 compose（无需下载源码 / 无需 build）
+# ikantvs — 一份 compose 即可（无需源码 / 无需 build）
+#
+# 容器一律 ikantvs-*，可与自用 jyinshi-* 栈并存。
 #
 # 用法：
-#   1. 宝塔 Docker → 编排 → 添加 → 粘贴本文件
-#   2. 同目录建 .env（可从仓库 .env.example 复制）改密码 / JWT / CORS
-#      或在编排环境变量里填同名项
-#   3. 启动。首次会 pull 镜像并自动建表。
+#   1. 宝塔 Docker → 编排 → 粘贴本文件；或目录内 docker compose up -d
+#   2. 同目录 .env（见 .env.example）改密码 / JWT / CORS
+#   3. 启动。首次 pull 镜像并自动建表。
 #
 # 端口：IP:3080 前台 · IP:3081 后台（admin / admin123，务必改密）
-#
-# 镜像：ghcr.io/kidoneself/ikantvs（含后端+前台+后台+建表 SQL）
+# 镜像：ghcr.io/kidoneself/ikantvs
+
+name: ikantvs
 
 services:
   mysql:
     image: mysql:8.0
-    container_name: jyinshi-mysql
+    container_name: ikantvs-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-root}
@@ -22,14 +24,14 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD:-change-me-db}
       TZ: Asia/Shanghai
     volumes:
-      - mysql_data:/var/lib/mysql
+      - ikantvs_mysql_data:/var/lib/mysql
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
       --default-time-zone=+08:00
       --binlog-expire-logs-seconds=604800
     networks:
-      - jyinshi-net
+      - ikantvs-net
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-change-me-root}"]
       interval: 10s
@@ -44,7 +46,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: jyinshi-redis
+    container_name: ikantvs-redis
     restart: unless-stopped
     command: >
       redis-server
@@ -53,7 +55,7 @@ services:
       --save 900 1
       --save 300 10
     networks:
-      - jyinshi-net
+      - ikantvs-net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -65,20 +67,20 @@ services:
         max-size: "20m"
         max-file: "2"
 
-  # 搜链；内存紧可删掉本服务，并设 ENABLE_PANSOU=false / INGEST_PANSOU_ENABLED=false
+  # 搜链；内存紧可删掉本服务，并设 INGEST_PANSOU_ENABLED=false
   pansou:
     image: ghcr.io/fish2018/pansou-web:latest
-    container_name: jyinshi-pansou
+    container_name: ikantvs-pansou
     restart: unless-stopped
     environment:
       CHANNELS: ${PANSOU_CHANNELS:-tgsearchers7,Aliyun_4K_Movies,bdbdndn11,yunpanx,bsbdbfjfjff,yp123pan,sbsbsnsqq,yunpanxunlei,tianyifc,BaiduCloudDisk,txtyzy,peccxinpd,gotopan,PanjClub,kkxlzy,baicaoZY,MCPH01,bdwpzhpd,ysxb48,jdjdn1111,yggpan,MCPH086,zaihuayun,Q66Share,Oscar_4Kmovies,ucwpzy,shareAliyun,alyp_1,dianyingshare,Quark_Movies,XiangxiuNBB,ydypzyfx,ucquark,xx123pan,yingshifenxiang123,zyfb123,tyypzhpd,tianyirigeng,cloudtianyi,hdhhd21,Lsp115,oneonefivewpfx,qixingzhenren,taoxgzy,Channel_Shares_115,tyysypzypd,vip115hot,wp123zy,yunpan139,yunpan189,yunpanuc,yydf_hzl,leoziyuan,pikpakpan,Q_dongman,yoyokuakeduanju}
       ENABLED_PLUGINS: ${PANSOU_PLUGINS:-labi,zhizhen,shandian,duoduo,muou}
       CACHE_TTL: ${PANSOU_CACHE_TTL:-60}
     volumes:
-      - pansou_cache:/app/data/cache
+      - ikantvs_pansou_cache:/app/data/cache
     mem_limit: 1g
     networks:
-      - jyinshi-net
+      - ikantvs-net
     logging:
       driver: json-file
       options:
@@ -87,7 +89,7 @@ services:
 
   db-init:
     image: ${APP_IMAGE:-ghcr.io/kidoneself/ikantvs:latest}
-    container_name: jyinshi-db-init
+    container_name: ikantvs-db-init
     restart: "no"
     environment:
       MYSQL_HOST: mysql
@@ -97,12 +99,12 @@ services:
       mysql:
         condition: service_healthy
     networks:
-      - jyinshi-net
+      - ikantvs-net
     entrypoint: ["/bin/sh", "/opt/ikantvs/db-init.sh"]
 
   app:
     image: ${APP_IMAGE:-ghcr.io/kidoneself/ikantvs:latest}
-    container_name: jyinshi-app
+    container_name: ikantvs-app
     restart: unless-stopped
     environment:
       TZ: Asia/Shanghai
@@ -135,7 +137,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - jyinshi-net
+      - ikantvs-net
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80/api/health"]
       interval: 30s
@@ -149,9 +151,12 @@ services:
         max-file: "3"
 
 networks:
-  jyinshi-net:
+  ikantvs-net:
+    name: ikantvs-net
     driver: bridge
 
 volumes:
-  mysql_data:
-  pansou_cache:
+  ikantvs_mysql_data:
+    name: ikantvs_mysql_data
+  ikantvs_pansou_cache:
+    name: ikantvs_pansou_cache
