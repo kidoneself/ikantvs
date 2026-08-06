@@ -1,6 +1,5 @@
 #!/bin/bash
-# 宝塔部署：./deploy.sh init|up|down|status|logs
-# 拉取预构建镜像，不在服务器上 build
+# 可选快捷方式。宝塔也可直接粘贴 docker-compose.yml 启动。
 set -euo pipefail
 
 DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -16,38 +15,17 @@ usage() {
 用法: ./deploy.sh <命令>
 
   init     生成 .env
-  up       拉取镜像并启动
+  up       拉取并启动（一份 compose，自动建表）
   down     停止
   status   状态
-  logs     日志（可跟服务名）
+  logs     日志
 
 说明见 ../docs/部署.md
 EOF
 }
 
-compose_cmd() {
-  local enable_pansou="true"
-  if [[ -f "$ENV_FILE" ]] && grep -qE '^ENABLE_PANSOU=' "$ENV_FILE"; then
-    enable_pansou="$(grep -E '^ENABLE_PANSOU=' "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '\"'"'"'[:space:]')"
-  fi
-  if [[ "${enable_pansou}" == "true" || "${enable_pansou}" == "1" ]]; then
-    echo "docker compose --env-file .env -f docker-compose.yml --profile pansou"
-  else
-    echo "docker compose --env-file .env -f docker-compose.yml"
-  fi
-}
-
 run_compose() {
-  # shellcheck disable=SC2086
-  (cd "$DEPLOY_DIR" && $(compose_cmd) "$@")
-}
-
-load_env() {
-  [[ -f "$ENV_FILE" ]] || err "缺少 .env，先：./deploy.sh init"
-  set -a
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
+  (cd "$DEPLOY_DIR" && docker compose --env-file .env -f docker-compose.yml "$@")
 }
 
 CMD="${1:-}"
@@ -60,37 +38,31 @@ case "$CMD" in
       warn ".env 已存在，未覆盖"
     else
       cp "$DEPLOY_DIR/.env.example" "$ENV_FILE"
-      info "已生成 .env，请改：密码 / JWT_SECRET / CORS_ALLOWED_ORIGINS"
+      info "已生成 .env，请改密码 / JWT_SECRET / CORS_ALLOWED_ORIGINS"
     fi
     ;;
   up)
-    load_env
+    [[ -f "$ENV_FILE" ]] || err "缺少 .env，先：./deploy.sh init"
     info "拉取镜像..."
     run_compose pull
     info "启动..."
     run_compose up -d
     echo
     info "前台 http://服务器IP:3080  后台 http://服务器IP:3081"
-    info "有域名后：宝塔反代 → 127.0.0.1:3080，CORS 改成 https 域名"
     ;;
   down)
-    load_env
+    [[ -f "$ENV_FILE" ]] || err "缺少 .env"
     run_compose down
     ;;
   status)
-    load_env
+    [[ -f "$ENV_FILE" ]] || err "缺少 .env"
     run_compose ps
     ;;
   logs)
-    load_env
+    [[ -f "$ENV_FILE" ]] || err "缺少 .env"
     shift || true
     run_compose logs -f --tail=100 "$@"
     ;;
-  -h|--help|help)
-    usage
-    ;;
-  *)
-    usage
-    exit 1
-    ;;
+  -h|--help|help) usage ;;
+  *) usage; exit 1 ;;
 esac

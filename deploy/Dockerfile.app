@@ -1,4 +1,4 @@
-# 单业务镜像：backend + web + admin
+# 单业务镜像：backend + web + admin + 建表 SQL
 # 构建（仓库根目录）：
 #   docker build -f deploy/Dockerfile.app -t ghcr.io/kidoneself/ikantvs:latest .
 
@@ -34,17 +34,19 @@ RUN pnpm build
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
-RUN apk add --no-cache nginx wget \
-  && mkdir -p /opt/ikantvs/web /opt/ikantvs/admin /run/nginx \
+RUN apk add --no-cache nginx wget mysql-client \
+  && mkdir -p /opt/ikantvs/web /opt/ikantvs/admin /opt/ikantvs/sql /run/nginx \
   && rm -f /etc/nginx/http.d/default.conf
 
 COPY deploy/nginx-app.conf /etc/nginx/http.d/ikantvs.conf
 COPY deploy/entrypoint-app.sh /entrypoint.sh
+COPY deploy/db-init.sh /opt/ikantvs/db-init.sh
+COPY deploy/init/*.sql /opt/ikantvs/sql/
 COPY --from=backend-build /app/target/jyinshi-server.jar /app/app.jar
 COPY --from=web-build /app/dist /opt/ikantvs/web
 COPY --from=admin-build /app/dist /opt/ikantvs/admin
 
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh /opt/ikantvs/db-init.sh
 
 ENV TZ=Asia/Shanghai
 EXPOSE 80 81 8888

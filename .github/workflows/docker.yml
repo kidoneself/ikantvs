@@ -10,6 +10,8 @@ on:
       - "deploy/Dockerfile.app"
       - "deploy/nginx-app.conf"
       - "deploy/entrypoint-app.sh"
+      - "deploy/db-init.sh"
+      - "deploy/init/**"
       - ".github/workflows/docker.yml"
   workflow_dispatch:
 

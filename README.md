@@ -3,22 +3,13 @@
 网盘影视资源信息流平台（开源壳）。
 
 夸克热榜灌片库 + pansou 搜链；后台可加每日更新。  
-部署：宝塔拉取预构建镜像即可，见 [docs/部署.md](docs/部署.md)。
+部署：**宝塔粘贴一份 compose 即可**，见 [docs/部署.md](docs/部署.md)。
 
-```bash
-# 把 deploy/ 放到服务器后：
-cd deploy
-cp .env.example .env    # 改密码 / JWT；CORS 先写 http://IP:3080
-docker compose --env-file .env --profile pansou pull
-docker compose --env-file .env --profile pansou up -d
-```
+1. 复制 [`deploy/docker-compose.yml`](deploy/docker-compose.yml) 到宝塔 Docker → 编排  
+2. 配置 `.env`（密码 / JWT / `CORS_ALLOWED_ORIGINS=http://IP:3080`）  
+3. 启动 → `http://IP:3080` 前台 · `http://IP:3081` 后台  
 
-| 入口 | 地址 |
-|------|------|
-| 前台 | `http://服务器IP:3080`（有域名再宝塔反代） |
-| 后台 | `http://服务器IP:3081`（admin / admin123，改密） |
-
-业务镜像：`ghcr.io/kidoneself/ikantvs`（一个镜像含后端 + 前台 + 后台）。
+镜像：`ghcr.io/kidoneself/ikantvs`（含后端 + 前台 + 后台 + 建表，无需本机 build）。
 
 ## 能力
 
