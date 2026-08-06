@@ -25,10 +25,10 @@ temp/
 scripts/.migrate_links_checkpoint.json
 scripts/.migrate_links_checkpoint.json.tmp
 
-# ===== 数据 / 持久卷 =====
-data/
-deploy/data/
-deploy/backups/
+# ===== 数据 / 持久卷（仅仓库根与 deploy，勿匹配 web/src/data）=====
+/data/
+/deploy/data/
+/deploy/backups/
 
 # ===== 密钥 / 环境 =====
 .env
