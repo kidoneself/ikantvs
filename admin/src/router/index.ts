@@ -123,7 +123,8 @@ const routes: RouteRecordRaw[] = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  // 支持挂在子路径（测试机 /__a/）；默认 Vite base 为 /
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 })
 
