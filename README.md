@@ -3,20 +3,22 @@
 网盘影视资源信息流平台（开源壳）。
 
 夸克热榜灌片库 + pansou 搜链；后台可加每日更新。  
-部署：**宝塔 + Docker**，见 [docs/部署.md](docs/部署.md)。
+部署：宝塔拉取预构建镜像即可，见 [docs/部署.md](docs/部署.md)。
 
 ```bash
-git clone https://github.com/kidoneself/ikantvs.git
-cd ikantvs/deploy
-./deploy.sh init          # 改密码 / JWT / CORS 域名
-./deploy.sh up
-# 宝塔：加站点 → SSL → 反代 127.0.0.1:3080，配置 /api → 3088
+# 把 deploy/ 放到服务器后：
+cd deploy
+cp .env.example .env    # 改密码 / JWT；CORS 先写 http://IP:3080
+docker compose --env-file .env --profile pansou pull
+docker compose --env-file .env --profile pansou up -d
 ```
 
 | 入口 | 地址 |
 |------|------|
-| 前台 | `https://你的域名` |
-| 后台 | `http://服务器IP:3081`（admin / admin123，务必改密） |
+| 前台 | `http://服务器IP:3080`（有域名再宝塔反代） |
+| 后台 | `http://服务器IP:3081`（admin / admin123，改密） |
+
+业务镜像：`ghcr.io/kidoneself/ikantvs`（一个镜像含后端 + 前台 + 后台）。
 
 ## 能力
 
@@ -29,7 +31,7 @@ cd ikantvs/deploy
 
 ## 目录
 
-`server/` 后端 · `web/` 前台 · `admin/` 后台 · `deploy/` 部署
+`server/` 后端 · `web/` 前台 · `admin/` 后台 · `deploy/` 编排
 
 ## 分支
 

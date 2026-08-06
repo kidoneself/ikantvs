@@ -1,5 +1,6 @@
 #!/bin/bash
 # 宝塔部署：./deploy.sh init|up|down|status|logs
+# 拉取预构建镜像，不在服务器上 build
 set -euo pipefail
 
 DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -15,7 +16,7 @@ usage() {
 用法: ./deploy.sh <命令>
 
   init     生成 .env
-  up       构建并启动
+  up       拉取镜像并启动
   down     停止
   status   状态
   logs     日志（可跟服务名）
@@ -64,11 +65,13 @@ case "$CMD" in
     ;;
   up)
     load_env
-    info "启动中（不占 80/443）..."
-    run_compose up -d --build
+    info "拉取镜像..."
+    run_compose pull
+    info "启动..."
+    run_compose up -d
     echo
-    info "本机：前台 127.0.0.1:3080  API 127.0.0.1:3088  后台 :3081"
-    info "宝塔：反代 → 3080，加 /api → 3088，开 SSL。见 docs/部署.md"
+    info "前台 http://服务器IP:3080  后台 http://服务器IP:3081"
+    info "有域名后：宝塔反代 → 127.0.0.1:3080，CORS 改成 https 域名"
     ;;
   down)
     load_env

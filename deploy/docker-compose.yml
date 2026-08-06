@@ -1,10 +1,11 @@
-# 宝塔部署：Docker 只跑业务，域名/HTTPS 交给宝塔
-# 不占 80/443。用法：./deploy.sh init → 编辑 .env → ./deploy.sh up
+# 宝塔 Docker Compose：项目目录选本 deploy/，配好 .env 后启动即可（无需源码、无需 build）。
+# 业务镜像由 CI 推到 GHCR：ghcr.io/kidoneself/ikantvs
 #
-# 端口：
-#   127.0.0.1:3080  前台（宝塔反代 /）
-#   127.0.0.1:3088  API（宝塔反代 /api）
-#   0.0.0.0:3081    后台 http://服务器IP:3081
+#   cp .env.example .env && 编辑
+#   docker compose --env-file .env --profile pansou pull
+#   docker compose --env-file .env --profile pansou up -d
+#
+# 端口：IP:3080 前台+API · IP:3081 后台
 
 services:
   mysql:
@@ -85,12 +86,9 @@ services:
         max-size: "20m"
         max-file: "2"
 
-  backend:
-    build:
-      context: ../server
-      dockerfile: Dockerfile
-    image: jyinshi-next-backend:latest
-    container_name: jyinshi-next-backend
+  app:
+    image: ${APP_IMAGE:-ghcr.io/kidoneself/ikantvs:latest}
+    container_name: jyinshi-app
     restart: unless-stopped
     env_file:
       - .env
@@ -114,7 +112,8 @@ services:
       QUARK_RANKING_ENABLED: ${QUARK_RANKING_ENABLED:-true}
       TMDB_API_KEY: ${TMDB_API_KEY:-}
     ports:
-      - "127.0.0.1:3088:8888"
+      - "3080:80"
+      - "3081:81"
     depends_on:
       mysql:
         condition: service_healthy
@@ -123,58 +122,16 @@ services:
     networks:
       - jyinshi-net
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8888/api/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80/api/health"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 90s
+      start_period: 120s
     logging:
       driver: json-file
       options:
         max-size: "50m"
         max-file: "3"
-
-  web:
-    build:
-      context: ../web
-      dockerfile: Dockerfile
-      args:
-        VITE_API_BASE: ${VITE_API_BASE:-/api}
-    image: jyinshi-next-web:latest
-    container_name: jyinshi-next-web
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:3080:80"
-    depends_on:
-      backend:
-        condition: service_healthy
-    networks:
-      - jyinshi-net
-    logging:
-      driver: json-file
-      options:
-        max-size: "20m"
-        max-file: "2"
-
-  admin:
-    build:
-      context: ../admin
-      dockerfile: Dockerfile
-    image: jyinshi-next-admin:latest
-    container_name: jyinshi-next-admin
-    restart: unless-stopped
-    ports:
-      - "3081:80"
-    depends_on:
-      backend:
-        condition: service_healthy
-    networks:
-      - jyinshi-net
-    logging:
-      driver: json-file
-      options:
-        max-size: "20m"
-        max-file: "2"
 
 networks:
   jyinshi-net:

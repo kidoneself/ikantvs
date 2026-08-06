@@ -44,6 +44,8 @@ git checkout main
 
 - `server/`、`web/`、`admin/` 业务代码（不含硬编码生产域名/IP）
 - `deploy/init/`、`deploy/deploy.sh`、`deploy/.env.example`、`deploy/docker-compose.yml`
+- `deploy/Dockerfile.app`、`deploy/nginx-app.conf`、`deploy/entrypoint-app.sh`（单业务镜像）
+- `.github/workflows/docker.yml`（推 GHCR：`ghcr.io/kidoneself/ikantvs`）
 - 对外 README、LICENSE、开源向 `docs/`（含 `docs/部署.md`）
 - `common/cloud/` 云端对接
 
