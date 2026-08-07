@@ -43,7 +43,7 @@ onMounted(load)
 
 <template>
   <div class="page" v-loading="loading">
-    <PageHeader title="数据洞察" description="用户在搜什么、想要什么没有、最爱点什么——运营决策的一手数据">
+    <PageHeader title="访问统计" description="搜索、缺链、点击——运营决策的一手数据">
       <template #extra>
         <el-radio-group :model-value="days" @change="(v: number) => changeDays(v)">
           <el-radio-button v-for="o in DAY_OPTIONS" :key="o.value" :value="o.value">

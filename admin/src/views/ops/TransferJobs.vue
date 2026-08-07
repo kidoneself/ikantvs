@@ -56,7 +56,7 @@ onMounted(() => {
 
 <template>
   <div class="page">
-    <PageHeader title="转存记录">
+    <PageHeader title="转存任务">
       <template #extra>
         <el-button :loading="jobsLoading" @click="loadJobs">刷新</el-button>
       </template>

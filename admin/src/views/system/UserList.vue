@@ -95,7 +95,7 @@ onMounted(load)
 
 <template>
   <div class="page">
-    <PageHeader title="账号管理" description="仅展示可登录后台的运营账号（录入员 / 审核员 / 管理员）">
+    <PageHeader title="后台账号" description="仅展示可登录后台的运营账号（录入员 / 审核员 / 管理员）">
       <template #extra>
         <el-tag>共 {{ total }} 人</el-tag>
       </template>

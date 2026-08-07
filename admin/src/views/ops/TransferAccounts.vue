@@ -294,7 +294,7 @@ onUnmounted(() => {
 
 <template>
   <div class="page">
-    <PageHeader title="网盘配置">
+    <PageHeader title="网盘账号">
       <template #extra>
         <el-button :loading="accountsLoading" @click="loadAccounts">刷新</el-button>
         <el-button type="primary" @click="openLogin()">添加账号</el-button>

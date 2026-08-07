@@ -103,7 +103,7 @@ onMounted(load)
 <template>
   <div class="page" v-loading="loading">
     <PageHeader
-      title="活码 / 加群"
+      title="加群活码"
       description="上传群码与公众号图；站内弹窗与 /qr 活码页共用。换群只换图即可。"
     />
 

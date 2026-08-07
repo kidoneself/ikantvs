@@ -14,13 +14,14 @@ usage() {
   cat <<'EOF'
 用法: ./deploy.sh <命令>
 
-  init     生成 .env
-  up       拉取并启动（一份 compose，自动建表）
+  init     从 .env.example 生成 .env（已存在则跳过）
+  up       pull 并启动
   down     停止
-  status   状态
-  logs     日志
+  restart  重启
+  status   容器状态
+  logs     跟踪日志（可跟服务名，如：./deploy.sh logs app）
 
-说明见 ../docs/部署.md
+说明：../docs/部署.md
 EOF
 }
 
@@ -48,11 +49,16 @@ case "$CMD" in
     info "启动..."
     run_compose up -d
     echo
-    info "前台 http://服务器IP:3080  后台 http://服务器IP:3081"
+    info "前台 http://服务器IP:3080  · 后台 http://服务器IP:3081（admin/admin123，请改密）"
+    info "首次启动会灌夸克热榜，可用：./deploy.sh logs app"
     ;;
   down)
     [[ -f "$ENV_FILE" ]] || err "缺少 .env"
     run_compose down
+    ;;
+  restart)
+    [[ -f "$ENV_FILE" ]] || err "缺少 .env"
+    run_compose up -d --force-recreate
     ;;
   status)
     [[ -f "$ENV_FILE" ]] || err "缺少 .env"

@@ -1,14 +1,15 @@
 # ikantvs — 一份 compose 即可（无需源码 / 无需 build）
 #
-# 容器一律 ikantvs-*，可与自用 jyinshi-* 栈并存。
+# 文档：https://github.com/kidoneself/ikantvs/blob/main/docs/部署.md
 #
 # 用法：
-#   1. 宝塔 Docker → 编排 → 粘贴本文件；或目录内 docker compose up -d
-#   2. 同目录 .env（见 .env.example）改密码 / JWT / CORS
-#   3. 启动。首次 pull 镜像并自动建表。
+#   宝塔：Docker → 编排 → 粘贴本文件 + 同目录 .env
+#   命令行：cp .env.example .env → 改密码 → docker compose up -d
+#           或仓库内 ./deploy.sh init && ./deploy.sh up
 #
 # 端口：IP:3080 前台 · IP:3081 后台（admin / admin123，务必改密）
-# 镜像：ghcr.io/kidoneself/ikantvs
+# 镜像：ghcr.io/kidoneself/ikantvs（含后端+前台+后台+建表）
+# 容器一律 ikantvs-*，可与自用 jyinshi-* 并存。
 
 name: ikantvs
 

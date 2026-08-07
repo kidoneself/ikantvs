@@ -202,7 +202,7 @@ onMounted(load)
 
 <template>
   <div class="page">
-    <PageHeader title="系统配置" description="公告、运维通知、采集、网盘展示等；修改后立即生效">
+    <PageHeader title="系统设置" description="公告、运维通知、采集、网盘展示等；修改后立即生效">
       <template #extra>
         <el-tag v-if="dirtyCount" type="warning">{{ dirtyCount }} 项未保存</el-tag>
       </template>

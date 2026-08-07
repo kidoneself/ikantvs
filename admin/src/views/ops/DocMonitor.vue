@@ -327,7 +327,7 @@ onMounted(async () => {
 <template>
   <div class="page">
     <PageHeader
-      title="文档资源发现"
+      title="文档采集"
       description="FlowUs / 金山文档监控；每文档可配解析规则，改格式不用发版"
     >
       <template #extra>
