@@ -74,10 +74,15 @@ jyinshi:
     quark-ranking:
       enabled: ${QUARK_RANKING_ENABLED:true}
       run-on-startup: ${QUARK_RANKING_RUN_ON_STARTUP:true}
-      hit-per-rank: ${QUARK_RANKING_HIT:40}
-      max-creates-per-run: ${QUARK_RANKING_MAX_CREATES:200}
+      # 单页条数（接口上限约 50）× 页数，启动时尽量把各榜翻完
+      hit-per-rank: ${QUARK_RANKING_HIT:50}
+      max-pages-per-rank: ${QUARK_RANKING_MAX_PAGES:20}
+      # <=0 不限制新建；首次灌库建议保持 0
+      max-creates-per-run: ${QUARK_RANKING_MAX_CREATES:0}
       api-url: ${QUARK_RANKING_API_URL:https://biz.quark.cn/api/trending/ranking/getYingshiRanking}
       timeout-ms: ${QUARK_RANKING_TIMEOUT_MS:15000}
+      # 每页请求间隔，避免连打被限
+      request-interval-ms: ${QUARK_RANKING_INTERVAL_MS:500}
       cron: ${QUARK_RANKING_CRON:0 20 */6 * * *}
     # 热度回写：把近 N 天真实行为分（放大 behavior-weight 倍）叠加到 media.hot，实现「最热=行为优先」
     hot:

@@ -26,8 +26,8 @@ import java.util.Set;
 @Service
 public class QuarkMediaSyncService {
 
-    private static final List<String> CHANNELS = List.of("电影", "电视剧", "综艺", "动漫");
-    private static final List<String> RANK_TYPES = List.of("最热", "新片榜", "好评榜");
+    private static final List<String> CHANNELS = List.of("电影", "电视剧", "综艺", "动漫", "短剧");
+    private static final List<String> RANK_TYPES = List.of("最热", "新片榜", "好评榜", "热搜榜");
 
     private final QuarkRankingClient client;
     private final QuarkRankingProperties props;
@@ -42,7 +42,7 @@ public class QuarkMediaSyncService {
         this.searchCache = searchCache;
     }
 
-    /** 全量跑一轮（各频道 × 榜型）。 */
+    /** 全量跑一轮（各频道 × 榜型，分页翻完）。 */
     public SyncResult syncAll() {
         if (!props.isEnabled()) {
             return SyncResult.disabled();
@@ -50,36 +50,54 @@ public class QuarkMediaSyncService {
         int created = 0;
         int updated = 0;
         int skipped = 0;
-        int maxCreate = Math.max(1, props.getMaxCreatesPerRun());
-        int hit = Math.max(10, props.getHitPerRank());
+        int maxCreate = props.getMaxCreatesPerRun(); // <=0 = 不限制
+        int hit = Math.max(1, Math.min(50, props.getHitPerRank()));
+        int maxPages = Math.max(1, props.getMaxPagesPerRank());
 
         Set<String> seen = new LinkedHashSet<>();
+        boolean firstRequest = true;
         for (String channel : CHANNELS) {
             for (String rank : RANK_TYPES) {
-                List<QuarkRankingItem> page = client.fetch(channel, rank, 0, hit);
-                for (QuarkRankingItem item : page) {
-                    String dedupe = channel + "|" + item.title() + "|" + item.year();
-                    if (!seen.add(dedupe)) {
-                        skipped++;
-                        continue;
+                for (int pageIdx = 0; pageIdx < maxPages; pageIdx++) {
+                    if (!firstRequest && !pauseBetweenRequests()) {
+                        bumpCache();
+                        return new SyncResult(true, created, updated, skipped);
                     }
-                    try {
-                        ApplyResult r = upsertOne(item);
-                        if (r == ApplyResult.CREATED) {
-                            created++;
-                            if (created >= maxCreate) {
-                                log.info("[quark-ranking] 达新建上限 {}，本轮结束", maxCreate);
-                                bumpCache();
-                                return new SyncResult(true, created, updated, skipped);
-                            }
-                        } else if (r == ApplyResult.UPDATED) {
-                            updated++;
-                        } else {
+                    firstRequest = false;
+
+                    int start = pageIdx * hit;
+                    List<QuarkRankingItem> page = client.fetch(channel, rank, start, hit);
+                    if (page.isEmpty()) {
+                        break;
+                    }
+                    for (QuarkRankingItem item : page) {
+                        String dedupe = channel + "|" + item.title() + "|" + item.year();
+                        if (!seen.add(dedupe)) {
                             skipped++;
+                            continue;
                         }
-                    } catch (Exception e) {
-                        skipped++;
-                        log.debug("[quark-ranking] 跳过 {}: {}", item.title(), e.getMessage());
+                        try {
+                            ApplyResult r = upsertOne(item);
+                            if (r == ApplyResult.CREATED) {
+                                created++;
+                                if (maxCreate > 0 && created >= maxCreate) {
+                                    log.info("[quark-ranking] 达新建上限 {}，本轮结束", maxCreate);
+                                    bumpCache();
+                                    return new SyncResult(true, created, updated, skipped);
+                                }
+                            } else if (r == ApplyResult.UPDATED) {
+                                updated++;
+                            } else {
+                                skipped++;
+                            }
+                        } catch (Exception e) {
+                            skipped++;
+                            log.debug("[quark-ranking] 跳过 {}: {}", item.title(), e.getMessage());
+                        }
+                    }
+                    // 不足一页 → 该榜已尽
+                    if (page.size() < hit) {
+                        break;
                     }
                 }
             }
@@ -185,6 +203,22 @@ public class QuarkMediaSyncService {
             searchCache.invalidateAll();
         } catch (Exception ignored) {
             // cache optional
+        }
+    }
+
+    /** @return false 若被中断，调用方应结束本轮 */
+    private boolean pauseBetweenRequests() {
+        int ms = props.getRequestIntervalMs();
+        if (ms <= 0) {
+            return true;
+        }
+        try {
+            Thread.sleep(ms);
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("[quark-ranking] 等待间隔被中断，提前结束本轮");
+            return false;
         }
     }
 

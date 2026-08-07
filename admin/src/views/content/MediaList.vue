@@ -162,7 +162,7 @@ watch(
 
 <template>
   <div class="page">
-    <PageHeader title="影视库" description="夸克热榜自动灌库；缺片可手工录入">
+    <PageHeader title="影视库" description="夸克热榜启动时尽量翻完灌库；缺片可手工录入">
       <template #extra>
         <el-tag>共 {{ total }} 条</el-tag>
       </template>
