@@ -12,7 +12,7 @@ alwaysApply: true
 | **本窗口** | [kidoneself/ikantvs](https://github.com/kidoneself/ikantvs)（`origin`） |
 | **自用（别的窗口/目录）** | [kidoneself/jyingshi](https://github.com/kidoneself/jyingshi) |
 
-本地远程：`origin` = ikantvs；`jyingshi` 仅作偶发对照，**不要往 jyingshi 推自用生产改动**（自用另开窗口）。
+本地远程：**仅** `origin` = ikantvs。自用仓 jyingshi 请另开目录/窗口，本仓库不添加自用 remote、不保留 `dev` 分支。
 
 ## 1. 分支
 

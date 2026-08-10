@@ -45,10 +45,6 @@ docker compose up -d
 
 `server/` 后端 · `web/` 前台 · `admin/` 后台 · `deploy/` 编排
 
-## 分支
-
-`main` 开源 · `dev` 自用
-
 ## 免责
 
 仅提供软件；内容与合规由部署者负责。勿提交真实 `.env` / 备份 / cookie。
