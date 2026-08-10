@@ -1,82 +1,62 @@
 ---
-description: 开源 vs 自用分支与改动规范（git 工作流）
+description: 本工作区专属开源仓 ikantvs（与自用仓分离）
 alwaysApply: true
 ---
 
-# 开源 vs 自用 · 分支与改动规范
+# 开源工作区 · ikantvs
 
-仓库：[kidoneself/ikantvs](https://github.com/kidoneself/ikantvs)
+本 Cursor 窗口 / 本目录 **永远只做开源**。
 
-## 1. 分支职责 · 按意图切换
+| | 仓 |
+|--|----|
+| **本窗口** | [kidoneself/ikantvs](https://github.com/kidoneself/ikantvs)（`origin`） |
+| **自用（别的窗口/目录）** | [kidoneself/jyingshi](https://github.com/kidoneself/jyingshi) |
 
-| 分支 | 什么时候用 | 内容边界 |
-|------|------------|----------|
-| **`dev`** | **默认**。自用、生产运维、内部文档、日常改代码 | 可含真实 IP/域名、广州/香港脚本 |
-| **`main`** | 用户说「**改开源**」「开源项目」「对外版」时，**先切到 main 再改** | 仅脱敏后的开源壳，不含自用文件 |
-| **`feature/*`** | 大改可选，从当前工作分支拉 | 合并回来源分支 |
+本地远程：`origin` = ikantvs；`jyingshi` 仅作偶发对照，**不要往 jyingshi 推自用生产改动**（自用另开窗口）。
+
+## 1. 分支
+
+| 分支 | 用途 |
+|------|------|
+| **`main`** | **默认且唯一工作分支**。开源壳、对外文档、部署模板 |
+| **`feature/*`** | 大改可选，合并回 `main` |
 
 ```bash
-# 默认（自用）
-git checkout dev
-
-# 用户明确要改开源时
 git checkout main
-# 改完 push origin main
+# 改完
+git push origin main
 ```
 
-**`main` 不是禁改**，只是「开源专用工作区」；没提到开源时，不要自动切过去。
+**不要**在本窗口默认切到 `dev` 做自用运维。用户若提广州/香港/生产自用 → 提醒去自用仓窗口，本仓不改。
 
-## 2. 改动分类 · 提交信息前缀
+## 2. 提交前缀
 
-| 前缀 | 含义 | 典型分支 |
-|------|------|----------|
-| **`pub:`** | 开源壳功能、部署模板、云端对接、对外文档 | `main`（或日后 cherry-pick 到 main） |
-| **`priv:`** | 自用运维、真实域名/IP、内部决策、生产发版 | `dev` |
-| **无前缀** | 共用修 bug / 重构 | 看当前分支；跨分支同步需人工决定 |
+| 前缀 | 含义 |
+|------|------|
+| **`pub:`** | 开源功能、部署模板、云端对接、对外文档（本仓默认） |
+| **无前缀** | 小修 bug / 重构亦可 |
 
-示例：
-- `pub: 云端片库同步 client 初版`（在 main 上改）
-- `priv: 广州 deploy 脚本调 pansou 地址`（在 dev 上改）
+本仓 **不用** `priv:`（自用提交只存在于 jyingshi）。
 
-## 3. 路径分区
+## 3. 可改路径（开源区）
 
-### 3.1 开源区（在 `main` 上改，commit 用 `pub:`）
-
-- `server/`、`web/`、`admin/` 业务代码（不含硬编码生产域名/IP）
+- `server/`、`web/`、`admin/`（不含硬编码生产域名/IP）
 - `deploy/init/`、`deploy/deploy.sh`、`deploy/.env.example`、`deploy/docker-compose.yml`
-- `deploy/Dockerfile.app`、`deploy/nginx-app.conf`、`deploy/entrypoint-app.sh`（单业务镜像）
-- `.github/workflows/docker.yml`（推 GHCR：`ghcr.io/kidoneself/ikantvs`）
-- 对外 README、LICENSE、开源向 `docs/`（含 `docs/部署.md`）
+- `deploy/Dockerfile.app`、`deploy/nginx-app.conf`、`deploy/entrypoint-app.sh`
+- `.github/workflows/`、对外 README、LICENSE、开源向 `docs/`
 - `common/cloud/` 云端对接
 
-### 3.2 自用区（在 `dev` 上改，commit 用 `priv:`，不进 `main`）
-
-- `deploy/deploy-guangzhou.sh`、`deploy/deploy-hk-gateway.sh`、`deploy/deploy-prod.sh`
-- `deploy/docker-compose.guangzhou.yml`、`docker-compose.hk-gateway.yml`、`docker-compose.prod.yml`
-- 现网部署架构文档（IP/域名段）、`docs/产品决策*`、`docs/老站*`
-- 任何真实 `.env`（已在 `.gitignore`，禁止提交）
-- `backups/`、`scripts/migrate_*`
-
-### 3.3 `main` 上禁止出现
+## 4. 禁止出现
 
 - 真实 IP、域名（`naspt.vip`、`ikantvs.com`、`175.x`、`149.x` 等）
 - API Key、JWT、R2/迅雷 secret、cookie
-- §3.2 自用脚本与内部文档
+- 广州/香港/prod 自用 compose 与内部决策文档
+- 硬编码账号密码（含测试代码）
 
-在 `main` 上改：**默认值用 `example.com`，环境变量占位，不写死生产值。**
+默认值用 `example.com`，密钥走环境变量占位。
 
-## 4. 两分支如何同步（可选，非每次必做）
+## 5. AI 约定
 
-`dev` 与 `main` 允许分叉，不强制实时同步。
-
-| 方向 | 何时 | 做法 |
-|------|------|------|
-| **dev → main** | 自用功能成熟，要纳入开源版 | cherry-pick `pub:` 提交，或在 main 上重做同等改动 |
-| **main → dev** | 开源区修了 bug / 加了能力 | merge 或 cherry-pick 回 dev（自用文件保留不动） |
-
-## 5. AI / 协作约定
-
-- **未说明** → 默认 `git checkout dev`，按自用处理。
-- 用户说「**改开源**」「开源项目」「对外」「main」→ **`git checkout main`**，只动 §3.1，commit 用 **`pub:`**，遵守 §3.3。
-- 用户说「自用」「生产」「广州/香港」→ 在 **`dev`**，commit 用 **`priv:`**，不动 `main`。
-- 改完告知当前分支，并提示是否 `git push origin <branch>`。
+- **未说明** → 默认在 **`main`**，按开源处理，commit 用 **`pub:`**。
+- 用户说「自用」「生产」「广州/香港」「jyingshi」→ **不在本窗口改代码**，提示换到自用项目。
+- 改完告知当前分支，并提示是否 `git push origin main`。
