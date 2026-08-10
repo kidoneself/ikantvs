@@ -19,7 +19,7 @@ import java.util.concurrent.Executors;
 /**
  * 飞书事件回调：用户发口令「今日」→ 回复更新列表。
  *
- * <p>飞书开放平台事件订阅 URL 配：{@code https://api.naspt.vip/api/feishu/webhook}</p>
+ * <p>飞书开放平台事件订阅 URL 配：{@code https://api.example.com/api/feishu/webhook}</p>
  */
 @Slf4j
 @RestController

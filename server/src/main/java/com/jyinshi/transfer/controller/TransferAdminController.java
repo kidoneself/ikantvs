@@ -183,7 +183,7 @@ public class TransferAdminController {
     }
 
     /**
-     * 迅雷：手动回填授权码。回调域名（naspt.vip）不通时的兜底——运营授权后把地址栏
+     * 迅雷：手动回填授权码。回调域名（example.com）不通时的兜底——运营授权后把地址栏
      * 那串（含 code 的完整 URL 或纯 code）贴回来，主站换 refresh_token 置 pending，worker 领走落号。
      * 注意迅雷 code 仅约 120s 有效，授权后要尽快提交。
      */

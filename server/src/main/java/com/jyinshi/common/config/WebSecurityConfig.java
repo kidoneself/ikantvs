@@ -103,7 +103,7 @@ public class WebSecurityConfig {
     }
 
     /**
-     * 跨域：仅允许配置的页面 Origin（前台 ikantvs.com → api 子域等）。
+     * 跨域：仅允许配置的页面 Origin（前台 example.com → api 子域等）。
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {

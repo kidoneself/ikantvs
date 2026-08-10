@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 活码公开页 + 后台管理（对齐老站路径，便于 naspt.vip/qr 无缝切换）。
+ * 活码公开页 + 后台管理（对齐老站路径，便于 example.com/qr 无缝切换）。
  */
 @RestController
 @RequestMapping("/api")
