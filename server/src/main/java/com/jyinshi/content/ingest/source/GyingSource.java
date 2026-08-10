@@ -4,6 +4,7 @@ import com.jyinshi.content.ingest.IngestPanFilter;
 import com.jyinshi.content.ingest.IngestProperties;
 import com.jyinshi.content.ingest.source.gying.GyingAccountPool;
 import com.jyinshi.content.ingest.source.gying.GyingSearchClient;
+import com.jyinshi.ops.service.SysConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -15,8 +16,9 @@ import java.util.Set;
 /**
  * 观影（Gying）来源插件：登录站点、搜剧名、拉详情页里的网盘链接，产出 {@link RawLink}。
  *
- * <p>只做「找链接」，归属识别/去重/入库/检测交给下游。需要账号才启用（见
- * {@code jyinshi.ingest.gying.accounts}）；账号池懒加载登录，不阻塞应用启动。
+ * <p>只做「找链接」，归属识别/去重/入库/检测交给下游。开关与账号优先读后台
+ * {@code sys_config}（{@link SysConfigService#INGEST_GYING_ENABLED} /
+ * {@link SysConfigService#INGEST_GYING_ACCOUNTS}），回退 yml/env；账号池懒加载登录。
  */
 @Slf4j
 @Component
@@ -26,11 +28,13 @@ public class GyingSource implements LinkSource {
 
     private final IngestProperties props;
     private final IngestPanFilter panFilter;
+    private final SysConfigService config;
     private final GyingAccountPool pool;
 
-    public GyingSource(IngestProperties props, IngestPanFilter panFilter) {
+    public GyingSource(IngestProperties props, IngestPanFilter panFilter, SysConfigService config) {
         this.props = props;
         this.panFilter = panFilter;
+        this.config = config;
         this.pool = new GyingAccountPool(props.getGying());
     }
 
@@ -39,13 +43,18 @@ public class GyingSource implements LinkSource {
         return SOURCE;
     }
 
+    /** 总开关走 yml；Gying 单源开关 + 账号走后台（可热更新）。 */
     @Override
     public boolean isEnabled() {
-        return props.isEnabled() && props.getGying().isEnabled() && pool.hasAccounts();
+        pool.syncAccounts(accountsConfig());
+        return props.isEnabled()
+                && config.getBool(SysConfigService.INGEST_GYING_ENABLED, props.getGying().isEnabled())
+                && pool.hasAccounts();
     }
 
     @Override
     public List<RawLink> search(String keyword) {
+        pool.syncAccounts(accountsConfig());
         if (!StringUtils.hasText(keyword)) {
             return List.of();
         }
@@ -82,5 +91,11 @@ public class GyingSource implements LinkSource {
             log.warn("[ingest] gying 搜索失败 kw={}: {}", keyword, e.getMessage());
             return List.of();
         }
+    }
+
+    private String accountsConfig() {
+        String fromYml = props.getGying().getAccounts();
+        return config.getOrDefault(SysConfigService.INGEST_GYING_ACCOUNTS,
+                fromYml == null ? "" : fromYml);
     }
 }

@@ -13,6 +13,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * <p>登录/PoW 较慢，故首次搜索时才初始化（不阻塞应用启动）。无可用账号时 {@link #search} 抛异常，
  * 由上层 {@code GyingSource} 兜底返回空。
+ *
+ * <p>后台改账号后通过 {@link #syncAccounts(String)} 热更新：字符串变化则重建池并重新登录。
  */
 @Slf4j
 public class GyingAccountPool {
@@ -20,20 +22,38 @@ public class GyingAccountPool {
     private static final long RETRY_INTERVAL_MS = 5 * 60 * 1000;
 
     private final IngestProperties.Gying cfg;
-    private final List<Account> accounts;
+    private final List<Account> accounts = new ArrayList<>();
     private final List<GyingSearchClient> clients = new CopyOnWriteArrayList<>();
     private final AtomicInteger cursor = new AtomicInteger(0);
 
+    private volatile String accountsRaw = "";
     private volatile boolean initialized = false;
     private volatile long lastRetryTime = 0;
 
     public GyingAccountPool(IngestProperties.Gying cfg) {
         this.cfg = cfg;
-        this.accounts = parseAccounts(cfg.getAccounts());
+    }
+
+    /**
+     * 与后台/env 当前账号串对齐；内容变化时清空已登录客户端，下次搜索重新登录。
+     */
+    public synchronized void syncAccounts(String raw) {
+        String normalized = raw == null ? "" : raw.trim();
+        if (normalized.equals(accountsRaw)) {
+            return;
+        }
+        accountsRaw = normalized;
+        accounts.clear();
+        accounts.addAll(parseAccounts(normalized));
+        clients.clear();
+        initialized = false;
+        lastRetryTime = 0;
+        cursor.set(0);
+        log.info("[gying] 账号配置已更新，共 {} 个账号（下次搜索时重新登录）", accounts.size());
     }
 
     /** 是否配了账号（没配则该来源不启用）。 */
-    public boolean hasAccounts() {
+    public synchronized boolean hasAccounts() {
         return !accounts.isEmpty();
     }
 
@@ -138,7 +158,7 @@ public class GyingAccountPool {
         if (raw == null || raw.isBlank()) {
             return out;
         }
-        for (String entry : raw.split(",")) {
+        for (String entry : raw.split("[,\\n\\r]+")) {
             String e = entry.trim();
             if (e.isEmpty()) {
                 continue;

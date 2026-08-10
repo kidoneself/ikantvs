@@ -46,6 +46,10 @@ public class SysConfigService {
     public static final String INGEST_PANSOU_ENABLED = "ingest.pansou.enabled";
     public static final String INGEST_PANSOU_BASE_URL = "ingest.pansou.base-url";
 
+    // 资源采集·观影(Gying)——需账号；后台可开关并改账号，env 仅作首次种子。
+    public static final String INGEST_GYING_ENABLED = "ingest.gying.enabled";
+    public static final String INGEST_GYING_ACCOUNTS = "ingest.gying.accounts";
+
     // 网站公告（前台顶栏 + 弹窗，正文支持 HTML）。
     public static final String SITE_NOTICE_ENABLED = "site.notice.enabled";
     public static final String SITE_NOTICE_TITLE = "site.notice.title";
@@ -145,6 +149,12 @@ public class SysConfigService {
         schema.add(new ConfigDef(INGEST_PANSOU_BASE_URL, "pansou 接口地址", GROUP_INGEST, TYPE_TEXT,
                 null, "pansou 服务基址；国内部署指向海外反代（如 https://pansou.example.com）",
                 seed("jyinshi.ingest.pansou.base-url", "http://pansou")));
+        schema.add(new ConfigDef(INGEST_GYING_ENABLED, "启用 Gying 采集", GROUP_INGEST, TYPE_BOOL,
+                null, "关闭后不调观影(Gying)搜网盘资源；需同时配置下方账号",
+                seed("jyinshi.ingest.gying.enabled", "false")));
+        schema.add(new ConfigDef(INGEST_GYING_ACCOUNTS, "Gying 账号", GROUP_INGEST, TYPE_TEXTAREA,
+                null, "格式 user:pass，多个用逗号或换行分隔（如 user1:pass1,user2:pass2）",
+                seed("jyinshi.ingest.gying.accounts", "")));
 
         schema.add(new ConfigDef(SITE_NOTICE_ENABLED, "启用公告", GROUP_NOTICE, TYPE_BOOL,
                 null, "关闭后前台不显示顶栏公告与弹窗", "false"));
