@@ -1,11 +1,14 @@
 # ikantvs
 
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Java](https://img.shields.io/badge/Java-17-orange.svg)](server/pom.xml)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.1-green.svg)](server/pom.xml)
 [![Vue](https://img.shields.io/badge/Vue-3-brightgreen.svg)](web/package.json)
 
 **网盘影视资源信息流平台** —— 夸克热榜灌片库、多源搜链、每日更新、运营后台；支持夸克 / 百度 / 迅雷一键转存（可选）。Docker 一键部署，不绑定作者私有上游。
+
+当前版本：**[v2.0.0](CHANGELOG.md)** · [更新日志](CHANGELOG.md)
 
 ---
 
@@ -76,10 +79,21 @@ GitHub Package 需为 **Public**，否则匿名 `pull` 会 401。镜像不可用
 
 ---
 
+## 更新日志
+
+各版本功能与变更见 **[CHANGELOG.md](CHANGELOG.md)**。
+
+### v2.0.0（2026-08-11）· 开源首发
+
+- 夸克热榜灌片库、pansou / Gying 搜链、每日更新、手工建片  
+- 可选：一键转存 / 追更、飞书机器人、R2 海报  
+- Docker 一键部署与使用 / 部署文档  
+
 ## 文档
 
 | 文档 | 说明 |
 |------|------|
+| [更新日志](CHANGELOG.md) | 版本与功能变更 |
 | [部署指南](docs/部署.md) | 安装、升级、排错 |
 | [使用说明](docs/使用说明.md) | 后台配置、片库、搜链、每日更新、转存 |
 | [重做设计方案](docs/重做设计方案.md) | 架构与业务域划分 |
