@@ -323,7 +323,8 @@ public class DailyUpdateService {
             return;
         }
         MediaLink link = mediaLinkMapper.selectById(mediaLinkId);
-        if (link == null || !"self".equals(link.getSource()) || link.getMediaId() == null) {
+        if (link == null || link.getMediaId() == null || link.getMediaId() <= 0
+                || !"self".equals(link.getSource())) {
             return;
         }
         Media media = mediaMapper.selectById(link.getMediaId());
@@ -423,7 +424,7 @@ public class DailyUpdateService {
                 mediaLinkMapper.updateById(link);
             }
             keep.add(link.getId());
-            // 启用监控转存（账号固定 role=monitor，不选手动号）
+            // 启用监控转存（账号固定该盘追更号，不选手动号）
             var mon = monitorService.enable(link.getId(), pan, in.getShareUrl(), in.getSharePwd(),
                     null, media.getId());
             // 每剧检查节奏（各盘链共用同一套；空=沿用全局）

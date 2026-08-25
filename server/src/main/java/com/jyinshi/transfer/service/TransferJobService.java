@@ -148,6 +148,17 @@ public class TransferJobService {
         return id == null ? null : jobMapper.selectById(id);
     }
 
+    public TransferJob findLatestByMediaLinkId(Long mediaLinkId) {
+        return mediaLinkId == null ? null : jobMapper.findLatestByMediaLinkId(mediaLinkId);
+    }
+
+    public TransferJob findLatestLibraryByMediaLinkId(Long mediaLinkId, String landingDir) {
+        if (mediaLinkId == null || !StringUtils.hasText(landingDir)) {
+            return null;
+        }
+        return jobMapper.findLatestByMediaLinkIdAndLanding(mediaLinkId, landingDir);
+    }
+
     /**
      * worker 领取一条任务。加事务保证 {@code FOR UPDATE SKIP LOCKED} 行锁在更新前不释放。
      *

@@ -22,13 +22,16 @@ public class TransferAccountService {
     private final TransferAccountMapper accountMapper;
     private final TransferRecordService recordService;
     private final com.jyinshi.transfer.notify.NotifyPort notify;
+    private final TransferPanPointerService pointerService;
 
     public TransferAccountService(TransferAccountMapper accountMapper,
                                   TransferRecordService recordService,
-                                  com.jyinshi.transfer.notify.NotifyPort notify) {
+                                  com.jyinshi.transfer.notify.NotifyPort notify,
+                                  TransferPanPointerService pointerService) {
         this.accountMapper = accountMapper;
         this.recordService = recordService;
         this.notify = notify;
+        this.pointerService = pointerService;
     }
 
     /**
@@ -229,65 +232,39 @@ public class TransferAccountService {
     }
 
     /**
-     * 取某网盘的监控转存专用号（role=monitor、启用、有凭据、健康优先）。
-     * 每盘只应有一套；监控转存创建/更新都固定走它，与用户转存号池分离。
+     * 取某盘追更号账号名（指针优先；未配则唯一号 / 历史上 role=monitor）。
      */
     public String monitorAccountName(String panType) {
-        TransferAccount a = findMonitorAccount(panType);
-        return a != null ? a.getAccountName() : null;
+        return pointerService.followAccountName(panType);
     }
 
     /**
-     * 取某网盘的监控转存专用号整行（含 id / credential）。
-     * <p>优先 role=monitor。迅雷一号两用：没有 monitor 时回退到该盘任意启用且有凭据的号。</p>
+     * 取某盘追更号整行（含 id / credential）。
      */
     public TransferAccount findMonitorAccount(String panType) {
-        if (!StringUtils.hasText(panType)) {
+        String name = pointerService.followAccountName(panType);
+        if (!StringUtils.hasText(name) || !StringUtils.hasText(panType)) {
             return null;
         }
-        String pan = panType.toLowerCase();
-        TransferAccount monitor = accountMapper.selectOne(new LambdaQueryWrapper<TransferAccount>()
-                .eq(TransferAccount::getPanType, pan)
-                .eq(TransferAccount::getRole, "monitor")
-                .eq(TransferAccount::getEnabled, true)
-                .isNotNull(TransferAccount::getCredential)
-                .ne(TransferAccount::getCredential, "")
-                .orderByDesc(TransferAccount::getHealthy)
-                .last("limit 1"));
-        if (monitor != null || !"xunlei".equals(pan)) {
-            return monitor;
-        }
         return accountMapper.selectOne(new LambdaQueryWrapper<TransferAccount>()
-                .eq(TransferAccount::getPanType, pan)
-                .eq(TransferAccount::getEnabled, true)
-                .isNotNull(TransferAccount::getCredential)
-                .ne(TransferAccount::getCredential, "")
-                .orderByDesc(TransferAccount::getHealthy)
+                .eq(TransferAccount::getPanType, panType.toLowerCase())
+                .eq(TransferAccount::getAccountName, name)
                 .last("limit 1"));
     }
 
     /**
-     * 该网盘是否有「可用的用户转存号」（role=transfer 或未设分工=默认转存，且启用、有凭据）。
-     * 用户点转存前置校验：没有就即时给友好提示，不入队、不占用日更号（各司其职）。
-     * <p>迅雷一号两用：monitor 号也算可用转存号。</p>
-     * <p>只看启用+有凭据，不卡 healthy（镜像 healthy 可能滞后 worker 实时体检），
-     * 真失效由 worker 执行时兜底回 NO_ACCOUNT。</p>
+     * 该网盘是否有可用账号（启用且有凭据）。用户点转存前置校验。
      */
     public boolean hasUsableTransferAccount(String panType) {
         if (!StringUtils.hasText(panType)) {
             return false;
         }
         String pan = panType.toLowerCase();
-        LambdaQueryWrapper<TransferAccount> qw = new LambdaQueryWrapper<TransferAccount>()
+        Long n = accountMapper.selectCount(new LambdaQueryWrapper<TransferAccount>()
                 .eq(TransferAccount::getPanType, pan)
                 .eq(TransferAccount::getEnabled, true)
                 .isNotNull(TransferAccount::getCredential)
-                .ne(TransferAccount::getCredential, "");
-        if (!"xunlei".equals(pan)) {
-            qw.and(w -> w.ne(TransferAccount::getRole, "monitor")
-                    .or().isNull(TransferAccount::getRole));
-        }
-        Long n = accountMapper.selectCount(qw);
+                .ne(TransferAccount::getCredential, ""));
         return n != null && n > 0;
     }
 
@@ -315,20 +292,6 @@ public class TransferAccountService {
         return list;
     }
 
-    /** 设置账号分工：transfer=用户转存 / monitor=监控转存。 */
-    public void setRole(Long id, String role) {
-        if (!"transfer".equals(role) && !"monitor".equals(role)) {
-            throw new BizException("role 仅支持 transfer / monitor");
-        }
-        TransferAccount a = accountMapper.selectById(id);
-        if (a == null) {
-            throw new BizException("账号不存在");
-        }
-        a.setRole(role);
-        accountMapper.updateById(a);
-        log.info("[账号] 设置分工 {}/{} → {}", a.getPanType(), a.getAccountName(), role);
-    }
-
     /**
      * 后台删除某账号（通常因封号）：直接删行（凭据随之清除，进程内账号池 30s 内对账剔除）
      * + 放弃其名下未删资源记录。返回放弃的资源记录条数。
@@ -338,6 +301,7 @@ public class TransferAccountService {
         if (a == null) {
             throw new BizException("账号不存在");
         }
+        pointerService.clearAccount(a.getPanType(), a.getAccountName());
         int abandoned = recordService.abandonByAccount(a.getPanType(), a.getAccountName());
         accountMapper.deleteById(a.getId());
         log.info("[账号] 删除账号 {}/{}，放弃资源记录 {} 条", a.getPanType(), a.getAccountName(), abandoned);

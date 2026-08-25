@@ -35,6 +35,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '每日更新' },
       },
       {
+        path: 'content/pool',
+        name: 'pool',
+        component: () => import('@/views/content/PoolIngest.vue'),
+        meta: { title: '同行录入', mode: 'peer' },
+      },
+      {
+        path: 'content/pool-self',
+        name: 'pool-self',
+        component: () => import('@/views/content/PoolIngest.vue'),
+        meta: { title: '自营录入', mode: 'self' },
+      },
+      {
         path: 'analytics',
         name: 'analytics',
         component: () => import('@/views/analytics/Index.vue'),

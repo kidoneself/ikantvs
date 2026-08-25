@@ -1,6 +1,7 @@
 package com.jyinshi.transfer.pan.account;
 
 import com.jyinshi.transfer.pan.driver.PanType;
+import com.jyinshi.transfer.service.TransferPanPointerService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -17,9 +18,11 @@ import java.util.List;
 public class AccountPool {
 
     private final AccountStore store;
+    private final TransferPanPointerService pointerService;
 
-    public AccountPool(AccountStore store) {
+    public AccountPool(AccountStore store, TransferPanPointerService pointerService) {
         this.store = store;
+        this.pointerService = pointerService;
     }
 
     /**
@@ -44,33 +47,36 @@ public class AccountPool {
         return pick(type);
     }
 
-    /** 挑一个可用账号（任意分工）；没有则返回 null。用于 probe 等只读、不写盘的场景。 */
+    /** 挑一个可用账号（任意指针）；没有则返回 null。用于 probe 等只读、不写盘的场景。 */
     public Account pick(PanType type) {
-        return pick(type, false);
+        return pick(type, java.util.Set.of(), false);
     }
 
     /**
-     * 用户临时转存专用选号：只在「转存号」里挑（role=transfer 或未设=默认转存），
-     * 日更号(monitor)一律排除，保证各司其职。没有可用转存号则返回 null（上层报友好提示）。
-     * <p>迅雷一号两用：不排除 monitor。</p>
+     * 用户临时转存选号：优先没被追更号/片库号占用的号；没有空闲号时回退任意可用号
+     * （迅雷一号两用、或指针未配时该盘唯一号）。
      */
     public Account pickForTransfer(PanType type) {
-        // 迅雷用户转存与监控/灌盘共用同一号，选号时不按 role 拆开
-        return pick(type, type != PanType.XUNLEI);
+        java.util.Set<String> reserved = pointerService.reservedAccountNames(
+                type == null ? null : type.name().toLowerCase());
+        Account spare = pick(type, reserved, true);
+        if (spare != null) {
+            return spare;
+        }
+        return pick(type, java.util.Set.of(), false);
     }
 
-    /** 挑一个可用账号；transferOnly=true 时排除日更号。没有则返回 null。 */
-    private Account pick(PanType type, boolean transferOnly) {
+    /** 挑一个可用账号；excludeReserved 时跳过 reserved 里的账号名。没有则返回 null。 */
+    private Account pick(PanType type, java.util.Set<String> reserved, boolean excludeReserved) {
         Account best = null;
         double bestScore = Double.NEGATIVE_INFINITY;
         for (Account a : store.list()) {
             if (a.getType() != type || !a.available()) {
                 continue;
             }
-            if (transferOnly && isMonitor(a)) {
+            if (excludeReserved && reserved != null && reserved.contains(a.getName())) {
                 continue;
             }
-            // 分数 = 权重 - 归一化的最近使用时间惩罚（越久没用分越高）
             double idleMinutes = (System.currentTimeMillis() - a.getLastUsedAt()) / 60000.0;
             double score = a.getWeight() + Math.min(idleMinutes, 60);
             if (score > bestScore) {
@@ -82,11 +88,6 @@ public class AccountPool {
             best.touch();
         }
         return best;
-    }
-
-    /** 是否日更号（monitor）。role 空/未设视为转存号。 */
-    private static boolean isMonitor(Account a) {
-        return "monitor".equalsIgnoreCase(a.getRole());
     }
 
     /** 标记账号不健康（cookie/token 失效），后续暂时跳过。 */

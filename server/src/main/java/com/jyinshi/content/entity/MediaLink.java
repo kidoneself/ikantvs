@@ -22,7 +22,7 @@ public class MediaLink implements Serializable {
     /** 规范化分享 id，去重键（media_id + pan_type + share_id 唯一）。 */
     private String shareId;
     private String note;
-    /** manual / pansou / crawl */
+    /** manual / pansou / crawl / pool / self */
     private String source;
     /** pending / approved / rejected */
     private String status;

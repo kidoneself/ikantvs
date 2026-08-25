@@ -37,6 +37,13 @@ public class FrontendOriginFilter extends OncePerRequestFilter {
             "/api/notify/today"
     );
 
+    private static boolean skipOrigin(String path) {
+        return SKIP_PATHS.contains(path)
+                || path.startsWith("/api/uploads/")
+                || path.startsWith("/api/open/pool")
+                || "/api/admin/pool/ingest".equals(path);
+    }
+
     private final CorsProperties corsProperties;
 
     public FrontendOriginFilter(CorsProperties corsProperties) {
@@ -55,8 +62,7 @@ public class FrontendOriginFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         // 运营上传图公开读（img 可能无 Origin；与 /drama-covers 同策略）
         if (!path.startsWith("/api/")
-                || SKIP_PATHS.contains(path)
-                || path.startsWith("/api/uploads/")) {
+                || skipOrigin(path)) {
             chain.doFilter(request, response);
             return;
         }

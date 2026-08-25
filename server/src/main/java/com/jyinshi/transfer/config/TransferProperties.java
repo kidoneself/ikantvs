@@ -26,6 +26,9 @@ public class TransferProperties {
     /** 用户转存（点击转存）。 */
     private UserTransfer userTransfer = new UserTransfer();
 
+    /** 自营录入（片库号永久转存）。 */
+    private Library library = new Library();
+
     /** 百度开放平台（隐式授权拿 access_token，专供走 xpan 官方接口删除，避开网页删除的验证码）。 */
     private Baidu baidu = new Baidu();
 
@@ -102,5 +105,13 @@ public class TransferProperties {
          * 只增不减、永久保留，是你的"剧库"，与用户临时转存分开互不影响。
          */
         private String landingDir = "追更资源";
+    }
+
+    /**
+     * 自营录入落地目录：永久保留，不参与临时转存清理，也不和每日更新的「追更资源」混用。
+     */
+    @Data
+    public static class Library {
+        private String landingDir = "自营片库";
     }
 }

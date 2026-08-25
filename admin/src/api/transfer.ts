@@ -213,19 +213,29 @@ export function getLoginStatus(sessionId: string) {
   return http.get<LoginSession>(`/admin/transfer/login/${sessionId}`)
 }
 
+export interface PanPointer {
+  panType: string
+  panLabel: string
+  followAccountName?: string
+  libraryAccountName?: string
+  accountNames: string[]
+}
+
+export function listPointers() {
+  return http.get<PanPointer[]>(`/admin/transfer/pointers`)
+}
+
+export function savePointer(body: {
+  panType: string
+  followAccountName?: string
+  libraryAccountName?: string
+}) {
+  return http.post<PanPointer[]>(`/admin/transfer/pointers`, body)
+}
+
 /** 删除账号（通常因封号）：直接删行 + 放弃其名下未删资源。返回放弃记录数。 */
 export function deleteAccount(id: number) {
   return http.post<{ abandoned: number }>(`/admin/transfer/accounts/${id}/delete`)
-}
-
-/** 设置账号分工：transfer=用户转存号 / monitor=每日更新监控号。 */
-export function setAccountRole(id: number, role: 'transfer' | 'monitor') {
-  return http.post<void>(`/admin/transfer/accounts/${id}/role`, { role })
-}
-
-export const ACCOUNT_ROLE_LABEL: Record<string, string> = {
-  transfer: '用户转存',
-  monitor: '每日更新监控',
 }
 
 /** 百度开放平台隐式授权页地址（浏览器打开授权后复制页面上的 access_token）。 */

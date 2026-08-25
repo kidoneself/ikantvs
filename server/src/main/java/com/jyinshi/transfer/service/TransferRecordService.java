@@ -17,6 +17,7 @@ import com.jyinshi.transfer.event.JobReportedEvent;
 import com.jyinshi.transfer.mapper.TransferMonitorMapper;
 import com.jyinshi.transfer.mapper.TransferRecordMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -46,6 +47,8 @@ public class TransferRecordService {
     private final ObjectMapper objectMapper;
     /** @Lazy 打破与 TransferAccountService 的构造循环（后者 requestRemove 依赖本服务）。 */
     private final TransferAccountService accountService;
+    private final TransferLibraryService libraryService;
+    private final ApplicationEventPublisher events;
 
     public TransferRecordService(TransferRecordMapper recordMapper,
                                  TransferMonitorMapper monitorMapper,
@@ -53,7 +56,9 @@ public class TransferRecordService {
                                  MediaLinkService mediaLinkService,
                                  TransferProperties props,
                                  ObjectMapper objectMapper,
-                                 @org.springframework.context.annotation.Lazy TransferAccountService accountService) {
+                                 @org.springframework.context.annotation.Lazy TransferAccountService accountService,
+                                 TransferLibraryService libraryService,
+                                 ApplicationEventPublisher events) {
         this.recordMapper = recordMapper;
         this.monitorMapper = monitorMapper;
         this.jobService = jobService;
@@ -61,6 +66,8 @@ public class TransferRecordService {
         this.props = props;
         this.objectMapper = objectMapper;
         this.accountService = accountService;
+        this.libraryService = libraryService;
+        this.events = events;
     }
 
     // ==================== 用户侧：点击转存 / 轮询结果 ====================
@@ -179,6 +186,10 @@ public class TransferRecordService {
         if ("transfer".equals(job.getJobType()) || "create".equals(job.getJobType())) {
             if ("done".equals(job.getStatus()) && StringUtils.hasText(job.getResultShareUrl())) {
                 upsertRecord(job);
+                if (libraryService.isLibraryLanding(job.getLandingDir()) && job.getMediaLinkId() != null) {
+                    events.publishEvent(new com.jyinshi.transfer.event.AnchorLinkReadyEvent(
+                            job.getMediaLinkId(), job.getResultShareUrl()));
+                }
             } else if ("failed".equals(job.getStatus()) && "transfer".equals(job.getJobType())) {
                 markSourceLinkInvalidIfNeeded(job);
             }
@@ -223,7 +234,8 @@ public class TransferRecordService {
         // 永久保留：迅雷等；或已启用监控转存的固定夹（不参与用户转存清理）。
         // 详情页转存也会带 mediaLinkId，不能据此判永久——须查 transfer_monitor。
         boolean permanent = props.getUserTransfer().getPermanentPanTypes().contains(pan)
-                || isMonitorManaged(job.getMediaLinkId());
+                || isMonitorManaged(job.getMediaLinkId())
+                || libraryService.isLibraryLanding(job.getLandingDir());
         LocalDateTime now = LocalDateTime.now();
 
         TransferRecord rec = findActive(pan, shareId);

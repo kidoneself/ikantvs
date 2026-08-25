@@ -90,6 +90,9 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/feishu/**").permitAll()
                         // 微信机器人机机拉取今日更新（自带 token；无浏览器 Origin）
                         .requestMatchers(HttpMethod.GET, "/api/notify/today").permitAll()
+                        // 入池脚本：Token 在控制器内校验；后台页走 JWT
+                        .requestMatchers(HttpMethod.POST, "/api/admin/pool/ingest").permitAll()
+                        .requestMatchers("/api/open/pool/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex.authenticationEntryPoint((req, resp, e) -> {
                     resp.setStatus(200);

@@ -11,11 +11,13 @@ import {
   getBaiduAuthorizeUrl,
   getLoginStatus,
   listAccounts,
-  setAccountRole,
+  listPointers,
+  savePointer,
   setBaiduToken,
   startXunleiAuthorize,
   submitXunleiCode,
   type LoginSession,
+  type PanPointer,
   type TransferAccount,
 } from '@/api/transfer'
 
@@ -27,6 +29,8 @@ function fmt(dt?: string) {
 
 const accounts = ref<TransferAccount[]>([])
 const accountsLoading = ref(false)
+const pointers = ref<PanPointer[]>([])
+const pointerSaving = ref<Record<string, boolean>>({})
 
 function fmtBytes(bytes?: number): string {
   if (bytes == null || bytes < 0) return '—'
@@ -48,10 +52,28 @@ async function loadAccounts() {
   accountsLoading.value = true
   try {
     accounts.value = await listAccounts()
+    pointers.value = await listPointers()
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '加载失败')
   } finally {
     accountsLoading.value = false
+  }
+}
+
+async function onSavePointer(p: PanPointer, field: 'followAccountName' | 'libraryAccountName', value?: string) {
+  const key = p.panType + field
+  pointerSaving.value[key] = true
+  try {
+    pointers.value = await savePointer({
+      panType: p.panType,
+      followAccountName: field === 'followAccountName' ? (value || '') : p.followAccountName,
+      libraryAccountName: field === 'libraryAccountName' ? (value || '') : p.libraryAccountName,
+    })
+    ElMessage.success('已保存')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '保存失败')
+  } finally {
+    pointerSaving.value[key] = false
   }
 }
 
@@ -85,20 +107,6 @@ async function onDeleteAccount(row: TransferAccount) {
     loadAccounts()
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '删除失败')
-  }
-}
-
-async function onSetRole(row: TransferAccount & { rolePending?: boolean }, role: string) {
-  if ((row.role || 'transfer') === role) return
-  row.rolePending = true
-  try {
-    await setAccountRole(row.id, role as 'transfer' | 'monitor')
-    row.role = role
-    ElMessage.success(role === 'monitor' ? '已设为监控转存号' : '已设为用户转存号')
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '设置失败')
-  } finally {
-    row.rolePending = false
   }
 }
 
@@ -302,6 +310,43 @@ onUnmounted(() => {
     </PageHeader>
 
     <el-card shadow="never" class="block">
+      <p class="hint">每盘两个当前号，可以选同一个账号。没被点到的号进用户临时转存（目录「临时转存」，会清理）。追更进「追更资源」，自营录入进「自营片库」，永久保留。</p>
+      <el-table :data="pointers" stripe class="table">
+        <el-table-column label="网盘" width="90">
+          <template #default="{ row }">{{ row.panLabel }}</template>
+        </el-table-column>
+        <el-table-column label="追更号（每日更新）" min-width="200">
+          <template #default="{ row }">
+            <el-select
+              :model-value="row.followAccountName || ''"
+              clearable
+              placeholder="未指定（唯一号时自动回退）"
+              style="width: 100%"
+              :loading="pointerSaving[row.panType + 'followAccountName']"
+              @change="(v: string) => onSavePointer(row, 'followAccountName', v)"
+            >
+              <el-option v-for="n in row.accountNames" :key="n" :label="n" :value="n" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="片库号（自营录入）" min-width="200">
+          <template #default="{ row }">
+            <el-select
+              :model-value="row.libraryAccountName || ''"
+              clearable
+              placeholder="未指定（多号时自营录入会失败）"
+              style="width: 100%"
+              :loading="pointerSaving[row.panType + 'libraryAccountName']"
+              @change="(v: string) => onSavePointer(row, 'libraryAccountName', v)"
+            >
+              <el-option v-for="n in row.accountNames" :key="n" :label="n" :value="n" />
+            </el-select>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <el-card shadow="never" class="block">
       <el-table v-loading="accountsLoading" :data="accounts" stripe class="table">
         <el-table-column label="网盘" width="90">
           <template #default="{ row }">{{ PAN_LABEL[row.panType] || row.panType }}</template>
@@ -322,19 +367,6 @@ onUnmounted(() => {
               <span class="space-text">{{ fmtBytes(row.usedSpace) }} / {{ fmtBytes(row.totalSpace) }}</span>
             </div>
             <span v-else>—</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="分工" width="150">
-          <template #default="{ row }">
-            <el-select
-              :model-value="row.role || 'transfer'"
-              size="small"
-              :loading="row.rolePending"
-              @change="(v: string) => onSetRole(row, v)"
-            >
-              <el-option label="用户转存" value="transfer" />
-              <el-option label="监控转存" value="monitor" />
-            </el-select>
           </template>
         </el-table-column>
         <el-table-column label="启用" width="80">

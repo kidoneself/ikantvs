@@ -49,8 +49,8 @@ public class JobExecutor {
      *
      * @param accountName   指定执行账号名（追更首转用回主站选定的「监控号」，落进它的专属夹）；
      *                      为空则走账号池按类型选号（用户点转存路径）。
-     * @param landingDir    顶层落地目录名（追更=追更资源 / 用户转存=临时转存）；toFolderId 为空时，
-     *                      在账号根下建/复用该夹作父目录，把「剧名」夹落进去，实现追更/临时物理隔离。
+     * @param landingDir    顶层落地目录名（追更=追更资源 / 自营=自营片库 / 用户转存=临时转存）；toFolderId 为空时，
+     *                      在账号根下建/复用该夹作父目录。
      * @param collectLatest 成功后是否列落地夹挑"最新文件名"回填（追更首转用；用户点转存传 false 免延迟）
      */
     public SaveResult save(PanType type, String shareUrl, String password, String toFolderId,

@@ -47,4 +47,12 @@ public interface TransferJobMapper extends BaseMapper<TransferJob> {
             "WHERE share_url = #{shareUrl} AND job_type = #{jobType} " +
             "AND status IN ('pending','running') ORDER BY id DESC LIMIT 1")
     TransferJob findActiveByShareUrl(@Param("shareUrl") String shareUrl, @Param("jobType") String jobType);
+
+    @Select("SELECT * FROM transfer_job WHERE media_link_id = #{mediaLinkId} ORDER BY id DESC LIMIT 1")
+    TransferJob findLatestByMediaLinkId(@Param("mediaLinkId") Long mediaLinkId);
+
+    @Select("SELECT * FROM transfer_job WHERE media_link_id = #{mediaLinkId} "
+            + "AND landing_dir = #{landingDir} ORDER BY id DESC LIMIT 1")
+    TransferJob findLatestByMediaLinkIdAndLanding(@Param("mediaLinkId") Long mediaLinkId,
+                                                  @Param("landingDir") String landingDir);
 }

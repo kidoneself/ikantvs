@@ -59,17 +59,17 @@ public class SearchService {
             return List.of();
         }
         List<Media> medias = recallMedia(keyword.trim());
-        if (medias.isEmpty()) {
-            return List.of();
-        }
         Map<Long, Media> mediaById = medias.stream()
                 .collect(Collectors.toMap(Media::getId, m -> m, (a, b) -> a, LinkedHashMap::new));
-        // loadLinks 返回不可变 List，排序前必须拷成可变列表
-        List<MediaLink> allLinks = new ArrayList<>(loadLinks(medias, allowed));
+        List<MediaLink> allLinks = new ArrayList<>(medias.isEmpty() ? List.of() : loadLinks(medias, allowed));
+        allLinks.addAll(loadUnboundPool(keyword.trim(), allowed));
+        if (allLinks.isEmpty()) {
+            return List.of();
+        }
         allLinks.sort(linkOrder(mediaById));
-        // 站长精选集数：只从监控最新文件名提取（老站同款），按剧取各盘最大值。
         List<Long> mediaIds = medias.stream().map(Media::getId).toList();
-        List<MediaLink> selfLinks = mediaLinkMapper.selectList(Wrappers.<MediaLink>lambdaQuery()
+        List<MediaLink> selfLinks = mediaIds.isEmpty() ? List.of() : mediaLinkMapper.selectList(
+                Wrappers.<MediaLink>lambdaQuery()
                 .in(MediaLink::getMediaId, mediaIds)
                 .eq(MediaLink::getStatus, "approved")
                 .eq(MediaLink::getInvalid, 0)
@@ -147,6 +147,21 @@ public class SearchService {
                 .toList();
     }
 
+    /** 未绑剧池：按 note（标题）检索，不查影视库片名。 */
+    private List<MediaLink> loadUnboundPool(String keyword, Set<String> allowed) {
+        List<MediaLink> rows = mediaLinkMapper.selectList(Wrappers.<MediaLink>lambdaQuery()
+                .eq(MediaLink::getMediaId, 0L)
+                .eq(MediaLink::getStatus, "approved")
+                .eq(MediaLink::getInvalid, 0)
+                .like(MediaLink::getNote, keyword)
+                .last("LIMIT 40"));
+        return rows.stream()
+                .filter(l -> allowed.contains(normalizePan(l.getPanType())))
+                .filter(l -> !MediaLinkAdFilter.isLikelyAd(l))
+                .filter(l -> !sensitiveWordService.isBlocked(l.getNote()))
+                .toList();
+    }
+
     private static String normalizePan(String panType) {
         return panType == null ? "" : panType.trim().toLowerCase();
     }
@@ -162,13 +177,13 @@ public class SearchService {
     }
 
     private static final Map<String, Integer> SOURCE_ORDER = Map.of(
-            "self", -1, "manual", 0, "gying", 1, "seedhub", 2, "pansou", 3);
+            "self", -1, "manual", 0, "gying", 1, "seedhub", 2, "pool", 3, "pansou", 4);
 
     private static int sourceRank(String source) {
         if (!StringUtils.hasText(source)) {
-            return 4;
+            return 5;
         }
-        return SOURCE_ORDER.getOrDefault(source.trim().toLowerCase(), 4);
+        return SOURCE_ORDER.getOrDefault(source.trim().toLowerCase(), 5);
     }
 
     private static SearchLinkItemVO toItem(MediaLink link, Media media, String latestEpisode) {
@@ -180,7 +195,7 @@ public class SearchService {
         vo.setPanType(normalizePan(link.getPanType()));
         vo.setPanLabel(MediaLinkService.panLabel(link.getPanType()));
         vo.setSource(link.getSource());
-        vo.setMediaId(link.getMediaId());
+        vo.setMediaId(link.getMediaId() != null && link.getMediaId() > 0 ? link.getMediaId() : null);
         vo.setMediaTitle(mediaTitle);
         boolean local = "self".equalsIgnoreCase(link.getSource()) || "manual".equalsIgnoreCase(link.getSource());
         vo.setLocal(local);

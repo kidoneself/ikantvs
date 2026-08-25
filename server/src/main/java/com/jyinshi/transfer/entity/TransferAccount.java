@@ -25,7 +25,10 @@ public class TransferAccount implements Serializable {
     private String panType;
     private String accountName;
 
-    /** 账号分工：transfer=用户转存号池 / monitor=每日更新追更专用号。 */
+    /**
+     * 历史字段，不再用于选号。选号改走每盘「追更号 / 片库号」指针。
+     * 存量 role=monitor 仅作追更号未配置时的迁移回退。
+     */
     private String role;
 
     /** 凭据：cookie（夸克/百度）或 refresh_token（迅雷）。方案A集中存主站，worker 拉取入内存。 */

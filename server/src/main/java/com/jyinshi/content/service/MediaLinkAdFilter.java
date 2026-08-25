@@ -26,7 +26,9 @@ public final class MediaLinkAdFilter {
         if (link == null) {
             return false;
         }
-        if ("manual".equalsIgnoreCase(link.getSource())) {
+        if ("manual".equalsIgnoreCase(link.getSource())
+                || "self".equalsIgnoreCase(link.getSource())
+                || "pool".equalsIgnoreCase(link.getSource())) {
             return false;
         }
         return matchesAdNote(link.getNote());

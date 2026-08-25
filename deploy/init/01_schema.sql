@@ -406,3 +406,11 @@ CREATE TABLE IF NOT EXISTS `transfer_login_session` (
   UNIQUE KEY `uk_session` (`session_id`),
   KEY `idx_worker_status` (`worker_id`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='加号会话';
+
+CREATE TABLE IF NOT EXISTS `transfer_pan_pointer` (
+  `pan_type` VARCHAR(16) NOT NULL,
+  `follow_account_name` VARCHAR(64) DEFAULT NULL,
+  `library_account_name` VARCHAR(64) DEFAULT NULL,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`pan_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='每盘追更号/片库号指针';

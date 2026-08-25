@@ -19,6 +19,7 @@ import com.jyinshi.transfer.service.TransferAccountService;
 import com.jyinshi.transfer.service.TransferJobService;
 import com.jyinshi.transfer.service.TransferLoginService;
 import com.jyinshi.transfer.service.TransferMonitorService;
+import com.jyinshi.transfer.service.TransferPanPointerService;
 import com.jyinshi.transfer.service.XunleiOAuthClient;
 import java.util.List;
 import java.util.Map;
@@ -43,19 +44,22 @@ public class TransferAdminController {
     private final TransferLoginService loginService;
     private final XunleiOAuthClient xunleiOAuth;
     private final com.jyinshi.transfer.config.TransferProperties props;
+    private final TransferPanPointerService pointerService;
 
     public TransferAdminController(TransferJobService jobService,
                                    TransferMonitorService monitorService,
                                    TransferAccountService accountService,
                                    TransferLoginService loginService,
                                    XunleiOAuthClient xunleiOAuth,
-                                   com.jyinshi.transfer.config.TransferProperties props) {
+                                   com.jyinshi.transfer.config.TransferProperties props,
+                                   TransferPanPointerService pointerService) {
         this.jobService = jobService;
         this.monitorService = monitorService;
         this.accountService = accountService;
         this.loginService = loginService;
         this.xunleiOAuth = xunleiOAuth;
         this.props = props;
+        this.pointerService = pointerService;
     }
 
     // ---- 任务 ----
@@ -121,12 +125,19 @@ public class TransferAdminController {
         return Result.success(Map.of("abandoned", accountService.requestRemove(id)));
     }
 
-    /** 设置账号分工：transfer=用户转存号 / monitor=每日更新监控号。 */
-    @PostMapping("/accounts/{id}/role")
-    public Result<Void> setAccountRole(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    /** 每盘追更号 / 片库号。 */
+    @GetMapping("/pointers")
+    public Result<List<com.jyinshi.transfer.dto.PanPointerVO>> listPointers() {
         AuthContext.requireStaff();
-        accountService.setRole(id, body.get("role"));
-        return Result.success(null);
+        return Result.success(pointerService.list());
+    }
+
+    @PostMapping("/pointers")
+    public Result<List<com.jyinshi.transfer.dto.PanPointerVO>> savePointer(
+            @RequestBody com.jyinshi.transfer.dto.PanPointerSaveRequest req) {
+        AuthContext.requireStaff();
+        pointerService.save(req);
+        return Result.success(pointerService.list());
     }
 
     // ---- 百度开放平台删除令牌（隐式授权，避开网页删除验证码）----

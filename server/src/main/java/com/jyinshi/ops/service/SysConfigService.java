@@ -67,6 +67,9 @@ public class SysConfigService {
     /** 微信机器人机机调用（「今日」拉取 / 后续 propose）共用 token。 */
     public static final String NOTIFY_WECHAT_TOKEN = "notify.wechat.token";
 
+    /** 入池脚本 Token（同行 / 自营开放接口共用）。空 = 脚本接口关闭。 */
+    public static final String POOL_SELF_TOKEN = "pool.self.token";
+
     private static final String GROUP_XUNLEI = "迅雷转存";
     private static final String GROUP_INGEST = "资源采集";
     private static final String GROUP_NOTICE = "网站公告";
@@ -183,6 +186,8 @@ public class SysConfigService {
                 null, "飞书群机器人「签名校验」密钥；企微一般留空", ""));
         schema.add(new ConfigDef(NOTIFY_WECHAT_TOKEN, "微信机器人 Token", GROUP_NOTIFY, TYPE_SECRET,
                 null, "微信机器人拉「今日」等机机接口鉴权；与控制台密码可相同", ""));
+        schema.add(new ConfigDef(POOL_SELF_TOKEN, "入池开放 Token", "资源入池", TYPE_SECRET,
+                null, "脚本调用同行录入 / 自营录入。Header X-Api-Token 或 Authorization: Bearer。空则脚本接口关闭", ""));
 
         for (SysConfig row : mapper.selectList(null)) {
             cache.put(row.getConfigKey(), row.getConfigValue());

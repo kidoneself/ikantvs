@@ -28,7 +28,7 @@ import java.util.List;
  * 监控转存闭环：到点检查源 → 无固定夹则「创建」、有更新则「更新」。
  *
  * <p>产品只有「监控转存」一种行为；内部步骤：check(检查) → create(创建) / update(更新)。
- * 账号永远取该盘唯一的 {@code role=monitor}，不选手动号。</p>
+ * 账号永远取该盘当前「追更号」，不选手动号。</p>
  *
  * <p>调度：每 5 分钟 tick；活跃时段按间隔检查；只有源快照变大才动账号做更新。</p>
  */
@@ -72,7 +72,7 @@ public class TransferMonitorService {
     /**
      * 启用（或更新）一条链接的监控转存。
      *
-     * @param accountNameIgnored 已废弃：监控固定走该盘 role=monitor，忽略传入值。
+     * @param accountNameIgnored 已废弃：监控固定走该盘追更号，忽略传入值。
      */
     public TransferMonitor enable(Long mediaLinkId, String panType, String shareUrl, String sharePwd,
                                   String accountNameIgnored) {
@@ -93,7 +93,7 @@ public class TransferMonitorService {
         String pan = panType.toLowerCase();
         String monitorAcct = accountService.monitorAccountName(pan);
         if (!StringUtils.hasText(monitorAcct)) {
-            throw new BizException("「" + pan + "」未配置监控账号（role=monitor），无法开启监控转存");
+            throw new BizException("「" + pan + "」未配置追更号，请到转存 → 网盘账号页指定，无法开启监控转存");
         }
         TransferMonitor m = findByMediaLink(mediaLinkId);
         boolean isNew = (m == null);
@@ -420,7 +420,7 @@ public class TransferMonitorService {
             case "create" -> {
                 m.setTargetFolderId(job.getResultFolderId());
                 m.setMyShareUrl(job.getResultShareUrl());
-                // 创建落在哪个监控号上，记下来供展示；下次任务仍按 role=monitor 解析，不依赖此字段选号
+                // 创建落在哪个追更号上，记下来供展示；下次任务仍按指针解析，不依赖此字段选号
                 String acct = readString(job.getResultJson(), "accountName");
                 if (StringUtils.hasText(acct)) {
                     m.setAccountName(acct);
@@ -535,7 +535,7 @@ public class TransferMonitorService {
         // 监控转存永远走该盘唯一的 monitor 号，不读运营选手动号、不沿用误绑的转存号
         String acct = accountService.monitorAccountName(m.getPanType());
         if (!StringUtils.hasText(acct)) {
-            log.warn("[监控转存] 跳过 {}：{} 无 role=monitor 账号 mediaLinkId={}",
+            log.warn("[监控转存] 跳过 {}：{} 未配置追更号 mediaLinkId={}",
                     jobType, m.getPanType(), m.getMediaLinkId());
             return;
         }
